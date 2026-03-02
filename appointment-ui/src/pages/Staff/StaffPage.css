@@ -1,0 +1,52 @@
+.staff-page {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
+.error-box {
+  padding: 12px;
+  background: #fee2e2;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  color: #991b1b;
+}
+
+.form-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.input {
+  width: 100%;
+  padding: 8px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  padding: 8px;
+}
+
+.table td {
+  border-bottom: 1px solid #eee;
+  padding: 8px;
+}
+
+.color-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 8px;
+}
