@@ -1,24 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { createStaff, listStaff, type CreateStaffRequest, type Staff } from "../../api/staff";
+import {
+  createStaff,
+  listStaff,
+  updateStaff,
+  type Staff,
+  type CreateStaffRequest,
+} from "../../api/staff";
+import StaffForm, {
+  type StaffFormValues,
+  type StaffFormMode,
+} from "./components/StaffForm/StaffForm";
+import StaffTable from "./components/StaffTable/StaffTable";
 import "./StaffPage.css";
 
 export default function StaffPage() {
   const params = useParams();
-  const businessId = useMemo(() => Number(params.businessId), [params.businessId]);
+  const businessId = useMemo(
+    () => Number(params.businessId),
+    [params.businessId]
+  );
 
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [form, setForm] = useState<CreateStaffRequest>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    colorHex: "#3b82f6",
-    isActive: true,
-  });
+  // modal state
+  const [modalMode, setModalMode] = useState<StaffFormMode>("create");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
+  const [saving, setSaving] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -39,154 +50,86 @@ export default function StaffPage() {
       setLoading(false);
       return;
     }
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
 
-  async function onCreate(e: React.FormEvent) {
-    e.preventDefault();
+  function openCreateModal() {
+    setModalMode("create");
+    setSelectedStaff(null);
+    setModalOpen(true);
+  }
+
+  function openEditModal(staffMember: Staff) {
+    setModalMode("edit");
+    setSelectedStaff(staffMember);
+    setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setSelectedStaff(null);
+  }
+
+  async function handleSave(values: StaffFormValues) {
+    setSaving(true);
     setError(null);
-
-    if (!form.firstName.trim()) {
-      setError("First name is required.");
-      return;
-    }
-
     try {
-      const created = await createStaff(businessId, {
-        ...form,
-        firstName: form.firstName.trim(),
-        lastName: form.lastName?.trim() || null,
-        email: form.email?.trim() || null,
-        phone: form.phone?.trim() || null,
-        colorHex: form.colorHex?.trim() || null,
-      });
-
-      setStaff((prev) => [...prev, created]);
-
-      setForm({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        colorHex: "#3b82f6",
-        isActive: true,
-      });
+      if (modalMode === "create") {
+        const created = await createStaff(businessId, values as CreateStaffRequest);
+        setStaff((prev) => [...prev, created]);
+      } else if (modalMode === "edit" && selectedStaff) {
+        const updated = await updateStaff(businessId, selectedStaff.id, values);
+        setStaff((prev) =>
+          prev.map((s) => (s.id === updated.id ? updated : s))
+        );
+      }
+      closeModal();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <div className="staff-page">
-      <h1>Staff</h1>
-      <p>
-        Business ID: <b>{params.businessId}</b>
-      </p>
+      <div className="staff-page-header">
+        <div>
+          <h1 className="staff-page-title">Staff</h1>
+          {params.businessId && (
+            <p className="staff-page-subtitle">
+              Business ID: <b>{params.businessId}</b>
+            </p>
+          )}
+        </div>
 
-      {error && <div className="error-box">{error}</div>}
+        <button
+          type="button"
+          className="staff-add-button"
+          onClick={openCreateModal}
+        >
+          Add Staff
+        </button>
+      </div>
 
-      <section className="section">
-        <h2>Add staff member</h2>
+      {error && <div className="staff-error-box">{error}</div>}
 
-        <form onSubmit={onCreate} className="form-grid">
-          <label>
-            First name *
-            <input
-              className="input"
-              value={form.firstName}
-              onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))}
-            />
-          </label>
+      {loading ? (
+        <div>Loading staff...</div>
+      ) : (
+        <StaffTable staff={staff} onEdit={openEditModal} />
+      )}
 
-          <label>
-            Last name
-            <input
-              className="input"
-              value={form.lastName ?? ""}
-              onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))}
-            />
-          </label>
-
-          <label>
-            Email
-            <input
-              className="input"
-              value={form.email ?? ""}
-              onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-            />
-          </label>
-
-          <label>
-            Phone
-            <input
-              className="input"
-              value={form.phone ?? ""}
-              onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-            />
-          </label>
-
-          <label>
-            Color
-            <input
-              className="input"
-              value={form.colorHex ?? ""}
-              onChange={(e) => setForm((p) => ({ ...p, colorHex: e.target.value }))}
-              placeholder="#RRGGBB"
-            />
-          </label>
-
-          <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 22 }}>
-            <input
-              type="checkbox"
-              checked={!!form.isActive}
-              onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
-            />
-            Active
-          </label>
-
-          <div style={{ gridColumn: "1 / -1" }}>
-            <button type="submit">Create</button>
-          </div>
-        </form>
-      </section>
-
-      <section className="section">
-        <h2>Staff list</h2>
-
-        {loading ? (
-          <div>Loading...</div>
-        ) : staff.length === 0 ? (
-          <div>No staff found.</div>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Active</th>
-              </tr>
-            </thead>
-            <tbody>
-              {staff.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <span
-                      className="color-dot"
-                      style={{ background: s.colorHex ?? "#999" }}
-                    />
-                    {s.firstName} {s.lastName ?? ""}
-                  </td>
-                  <td>{s.email ?? "-"}</td>
-                  <td>{s.phone ?? "-"}</td>
-                  <td>{s.isActive ? "Yes" : "No"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+      {modalOpen && (
+        <StaffForm
+          mode={modalMode}
+          initialStaff={selectedStaff}
+          loading={saving}
+          onSave={handleSave}
+          onCancel={closeModal}
+        />
+      )}
     </div>
   );
 }

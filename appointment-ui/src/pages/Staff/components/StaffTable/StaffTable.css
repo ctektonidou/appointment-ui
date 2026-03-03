@@ -1,0 +1,55 @@
+.staff-table-wrapper {
+  margin-top: 8px;
+}
+
+.staff-table-empty {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.staff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.staff-table th,
+.staff-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.staff-col-name {
+  width: 40%;
+}
+
+.staff-col-actions {
+  width: 120px;
+  text-align: right;
+}
+
+.staff-color-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 8px;
+}
+
+.staff-icon-button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  margin-left: 4px;
+}
+
+.staff-icon-button:hover {
+  transform: translateY(-1px);
+}
+
+.staff-icon-danger {
+  color: #dc2626;
+}

@@ -1,5 +1,7 @@
 import { http } from "./http";
 
+const API_BASE = "http://localhost:8080/api";
+
 export type Staff = {
   id: number;
   businessId: number;
@@ -23,6 +25,8 @@ export type CreateStaffRequest = {
   userId?: number | null;
 };
 
+export type UpdateStaffRequest = CreateStaffRequest;
+
 export async function listStaff(businessId: number): Promise<Staff[]> {
   // Adjust path if your backend differs
   return http<Staff[]>(`/api/businesses/${businessId}/staff`);
@@ -36,4 +40,24 @@ export async function createStaff(
     method: "POST",
     body: JSON.stringify(req),
   });
+}
+
+export async function updateStaff(
+  businessId: number,
+  staffId: number,
+  body: UpdateStaffRequest
+): Promise<Staff> {
+  const res = await fetch(
+    `${API_BASE}/businesses/${businessId}/staff/${staffId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to update staff");
+  }
+  return res.json();
 }

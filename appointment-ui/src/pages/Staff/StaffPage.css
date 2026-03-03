@@ -1,52 +1,46 @@
 .staff-page {
   padding: 24px;
-  max-width: 900px;
+  max-width: 1000px;
   margin: 0 auto;
 }
 
-.section {
-  margin-bottom: 24px;
+.staff-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
 }
 
-.error-box {
-  padding: 12px;
-  background: #fee2e2;
-  border-radius: 8px;
-  margin-bottom: 12px;
-  color: #991b1b;
+.staff-page-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
 }
 
-.form-grid {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: 1fr 1fr;
+.staff-page-subtitle {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 14px;
 }
 
-.input {
-  width: 100%;
-  padding: 8px;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.table th {
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-  padding: 8px;
-}
-
-.table td {
-  border-bottom: 1px solid #eee;
-  padding: 8px;
-}
-
-.color-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
+.staff-add-button {
+  padding: 8px 18px;
   border-radius: 999px;
-  margin-right: 8px;
+  border: none;
+  background: #1ba7a1;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.staff-add-button:hover {
+  background: #15908a;
+}
+
+.staff-error-box {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  margin-bottom: 12px;
 }
