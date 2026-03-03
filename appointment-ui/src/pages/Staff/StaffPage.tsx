@@ -4,6 +4,7 @@ import {
   createStaff,
   listStaff,
   updateStaff,
+  deleteStaff,
   type Staff,
   type CreateStaffRequest,
 } from "../../api/staff";
@@ -92,6 +93,20 @@ export default function StaffPage() {
     }
   }
 
+  async function handleDelete(staffMember: Staff) {
+  if (!window.confirm(`Delete staff member "${staffMember.firstName}"?`)) {
+    return;
+  }
+
+  setError(null);
+  try {
+    await deleteStaff(businessId, staffMember.id);
+    setStaff((prev) => prev.filter((s) => s.id !== staffMember.id));
+  } catch (e) {
+    setError(e instanceof Error ? e.message : "Failed to delete staff member.");
+  }
+}
+
   return (
     <div className="staff-page">
       <div className="staff-page-header">
@@ -118,7 +133,7 @@ export default function StaffPage() {
       {loading ? (
         <div>Loading staff...</div>
       ) : (
-        <StaffTable staff={staff} onEdit={openEditModal} />
+        <StaffTable staff={staff} onEdit={openEditModal} onDelete={handleDelete}/>
       )}
 
       {modalOpen && (

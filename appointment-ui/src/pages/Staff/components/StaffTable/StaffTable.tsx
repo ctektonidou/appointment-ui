@@ -5,10 +5,10 @@ import "./StaffTable.css";
 interface StaffTableProps {
   staff: Staff[];
   onEdit: (staff: Staff) => void;
-  // in future: onDelete?: (staff: Staff) => void;
+  onDelete: (staff: Staff) => void;
 }
 
-export default function StaffTable({ staff, onEdit }: StaffTableProps) {
+export default function StaffTable({ staff, onEdit, onDelete }: StaffTableProps) {
   if (staff.length === 0) {
     return <div className="staff-table-empty">No staff found.</div>;
   }
@@ -31,7 +31,6 @@ export default function StaffTable({ staff, onEdit }: StaffTableProps) {
               <td className="staff-col-name">
                 <span
                   className="staff-color-dot"
-                  style={{ background: s.colorHex ?? "#9ca3af" }}
                 />
                 {s.firstName} {s.lastName ?? ""}
               </td>
@@ -47,16 +46,16 @@ export default function StaffTable({ staff, onEdit }: StaffTableProps) {
                 >
                   ✏️
                 </button>
-                {/* later we can add delete:
-                <button
-                  type="button"
-                  className="staff-icon-button staff-icon-danger"
-                  title="Delete"
-                  onClick={() => onDelete?.(s)}
-                >
-                  🗑
-                </button>
-                */}
+                {
+                  <button
+                    type="button"
+                    className="staff-icon-button staff-icon-danger"
+                    title="Delete"
+                    onClick={() => onDelete(s)}
+                  >
+                    🗑
+                  </button>
+                }
               </td>
             </tr>
           ))}

@@ -76,7 +76,7 @@
 
 .staff-modal-status-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   margin-top: 4px;
   font-size: 14px;
@@ -87,6 +87,7 @@
   display: inline-flex;
   align-items: center;
   cursor: pointer;
+  margin-left: 10px;
 }
 
 .staff-toggle input {
@@ -115,7 +116,7 @@
 }
 
 .staff-toggle input:checked + .staff-toggle-slider {
-  background: #16a34a;
+  background: #1ba7a1;
 }
 
 .staff-toggle input:checked + .staff-toggle-slider::before {

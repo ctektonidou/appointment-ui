@@ -10,7 +10,6 @@ export type Staff = {
   lastName?: string | null;
   email?: string | null;
   phone?: string | null;
-  colorHex?: string | null;
   isActive: boolean;
   createdAt?: string; // ISO string
 };
@@ -20,7 +19,6 @@ export type CreateStaffRequest = {
   lastName?: string | null;
   email?: string | null;
   phone?: string | null;
-  colorHex?: string | null;
   isActive?: boolean;
   userId?: number | null;
 };
@@ -60,4 +58,23 @@ export async function updateStaff(
     throw new Error("Failed to update staff");
   }
   return res.json();
+}
+
+export async function deleteStaff(
+  businessId: number,
+  staffId: number
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/businesses/${businessId}/staff/${staffId}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      text || `Failed to delete staff member (status ${res.status})`
+    );
+  }
 }

@@ -9,7 +9,6 @@ export interface StaffFormValues {
   lastName?: string | null;
   email?: string | null;
   phone?: string | null;
-  colorHex?: string | null;
   isActive: boolean;
 }
 
@@ -33,7 +32,6 @@ export default function StaffForm({
     lastName: "",
     email: "",
     phone: "",
-    colorHex: "#1ba7a1",
     isActive: true,
   });
 
@@ -47,7 +45,6 @@ export default function StaffForm({
         lastName: initialStaff.lastName ?? "",
         email: initialStaff.email ?? "",
         phone: initialStaff.phone ?? "",
-        colorHex: initialStaff.colorHex ?? "#1ba7a1",
         isActive: !!initialStaff.isActive,
       });
     } else {
@@ -56,7 +53,6 @@ export default function StaffForm({
         lastName: "",
         email: "",
         phone: "",
-        colorHex: "#1ba7a1",
         isActive: true,
       });
     }
@@ -92,7 +88,6 @@ export default function StaffForm({
       lastName: values.lastName?.trim() || null,
       email: values.email?.trim() || null,
       phone: values.phone?.trim() || null,
-      colorHex: values.colorHex?.trim() || null,
     });
   }
 
@@ -145,17 +140,6 @@ export default function StaffForm({
               onChange={handleChange}
               className="staff-modal-input"
               placeholder="Phone"
-            />
-          </label>
-
-          <label className="staff-modal-field">
-            <span>Color</span>
-            <input
-              name="colorHex"
-              value={values.colorHex ?? ""}
-              onChange={handleChange}
-              className="staff-modal-input"
-              placeholder="#RRGGBB"
             />
           </label>
 
