@@ -1,0 +1,191 @@
+/* src/pages/Dashboard/DashboardPage.css */
+
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 24px 24px;
+  box-sizing: border-box;
+}
+
+.dash-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dash-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.dash-date {
+  font-size: 14px;
+  color: #555;
+}
+
+/* KPI row */
+
+.dash-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* When we don’t render the 4th card (staff / customer), let the grid shrink nicely */
+.dash-stat-row > .dash-stat-card:nth-child(4):last-child {
+  /* nothing special, grid handles it; keeping selector for possible tweaks */
+}
+
+.dash-stat-card {
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-stat-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: #179b8f;
+}
+
+.dash-stat-label {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.dash-stat-sublabel {
+  font-size: 11px;
+  color: #999;
+}
+
+/* Actions */
+
+.dash-actions-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.dash-btn {
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.dash-btn-primary {
+  background-color: #1aa39a;
+  color: #fff;
+}
+
+.dash-btn-primary:hover {
+  background-color: #178c85;
+}
+
+.dash-btn-secondary {
+  background-color: #ffffff;
+  color: #1aa39a;
+  border: 1px solid #1aa39a;
+}
+
+.dash-btn-secondary:hover {
+  background-color: #e7f7f6;
+}
+
+/* Main grid */
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+/* When there is only one card (customer) it naturally fills the row */
+
+.dash-card {
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.dash-card-title {
+  font-weight: 500;
+}
+
+.dash-card-icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Table */
+
+.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.dash-table th,
+.dash-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid #eee;
+}
+
+.dash-table th {
+  text-align: left;
+  font-weight: 500;
+  color: #555;
+}
+
+/* Chart placeholder */
+
+.dash-chart-placeholder {
+  height: 260px;
+  border-radius: 6px;
+  background: linear-gradient(
+    to top,
+    #e5f6f4 0%,
+    #f5f5f5 30%,
+    #ffffff 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  font-size: 14px;
+}
+
+/* Small screens */
+
+@media (max-width: 900px) {
+  .dash-stat-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dash-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

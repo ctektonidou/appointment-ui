@@ -1,0 +1,220 @@
+/* src/pages/Calendar/CalendarPage.css */
+
+.calendar-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Toolbar (dropdown + Day/Week + New Appointment) */
+
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.calendar-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.calendar-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.calendar-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.calendar-select {
+  min-width: 140px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #d0d7de;
+  font-size: 14px;
+}
+
+/* Day / Week toggle */
+
+.calendar-view-switch {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+
+.calendar-view-btn {
+  border: none;
+  background: transparent;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.calendar-view-btn--active {
+  font-weight: 600;
+}
+
+.calendar-view-divider {
+  margin: 0 4px;
+  color: #555;
+}
+
+/* Main layout: calendar + details */
+
+.calendar-main {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
+  gap: 16px;
+}
+
+/* Cards */
+
+.calendar-card {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #e5e7eb;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-card--calendar {
+  /* let react-big-calendar fill it */
+}
+
+.calendar-card--details {
+  max-width: 340px;
+}
+
+/* Details panel */
+
+.calendar-details-header {
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.calendar-details-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.calendar-details-empty {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.calendar-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.calendar-detail-label {
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.calendar-detail-value {
+  font-weight: 500;
+}
+
+/* Notes */
+
+.calendar-detail-notes {
+  margin-top: 8px;
+}
+
+.calendar-detail-notes-box {
+  margin-top: 4px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 13px;
+}
+
+/* Detail buttons */
+
+.calendar-detail-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+/* Buttons (reuse dashboard vibes) */
+
+.calendar-btn-primary {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: none;
+  background: #00a58f;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.calendar-btn-primary:hover {
+  background: #00907c;
+}
+
+.calendar-btn-secondary {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  background: #00a58f;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.calendar-btn-secondary:hover {
+  background: #00907c;
+}
+
+.calendar-btn-ghost {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.calendar-btn-ghost:hover {
+  background: #f3f4f6;
+}
+
+/* --- react-big-calendar tweaks (optional) --- */
+
+.rbc-calendar {
+  font-size: 12px;
+}
+
+.rbc-time-view,
+.rbc-time-header,
+.rbc-time-content {
+  border-color: #e5e7eb;
+}
+
+.rbc-time-header-gutter,
+.rbc-time-gutter {
+  width: 60px;
+}
+
+.rbc-today {
+  background-color: #ecfeff;
+}
+
+.rbc-event {
+  background-color: #39c8b2;
+  border-radius: 6px;
+  border: none;
+}
