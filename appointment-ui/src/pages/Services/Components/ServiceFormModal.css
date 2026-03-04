@@ -1,0 +1,316 @@
+.service-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.service-modal {
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+  width: 520px;
+  max-width: 90vw;
+  padding: 20px 24px 18px;
+}
+
+.service-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.service-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.service-modal-close {
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.service-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.service-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.service-field-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.service-input,
+.service-textarea {
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.service-textarea {
+  resize: vertical;
+}
+
+.service-row {
+  display: flex;
+  gap: 12px;
+}
+
+.service-field-half {
+  flex: 1;
+}
+
+.service-color-input {
+  width: 50px;
+  height: 34px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+/* Active checkbox row */
+.service-active-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Error */
+.service-modal-error {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 13px;
+}
+
+/* Footer buttons */
+
+.service-modal-footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.service-btn-primary {
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: none;
+  background: #00a58f;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.service-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.service-btn-primary:hover:not(:disabled) {
+  background: #00907c;
+}
+
+.service-btn-secondary {
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: none;
+  background: #9ca3af;
+  color: #ffffff;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.service-btn-secondary:hover {
+  background: #6b7280;
+}
+
+.service-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.service-modal {
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+  width: 560px;              /* a bit wider like your mock */
+  max-width: 95vw;
+  padding: 20px 24px 18px;
+}
+
+.service-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.service-modal-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.service-modal-close {
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.service-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.service-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.service-field-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.service-input,
+.service-textarea {
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.service-textarea {
+  resize: vertical;
+}
+
+/* Row with price + color */
+.service-row {
+  display: flex;
+  gap: 12px;
+}
+
+.service-field-half {
+  flex: 1;
+}
+
+/* Price with "euro" suffix */
+.service-price-wrapper {
+  position: relative;
+}
+
+.service-price-input {
+  padding-right: 54px; /* room for suffix */
+}
+
+.service-price-suffix {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Color box (square like in mock) */
+.service-color-box-wrapper {
+  display: inline-flex;
+  align-items: center;
+}
+
+.service-color-input {
+  width: 52px;
+  height: 34px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+/* Active checkbox row */
+.service-active-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Error */
+.service-modal-error {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 13px;
+}
+
+/* Footer */
+.service-modal-footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.service-btn-primary {
+  padding: 8px 32px;
+  border-radius: 999px;
+  border: none;
+  background: #008f7a;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.service-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.service-btn-primary:hover:not(:disabled) {
+  background: #007a68;
+}
+
+.service-btn-secondary {
+  padding: 8px 32px;
+  border-radius: 999px;
+  border: none;
+  background: #9ca3af;
+  color: #ffffff;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.service-btn-secondary:hover {
+  background: #6b7280;
+}

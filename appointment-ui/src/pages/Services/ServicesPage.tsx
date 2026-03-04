@@ -4,12 +4,16 @@ import {
   listServices,
   updateService,
   deleteService,
+  createService,
   type Service,
+  type ServiceFormValues,
 } from "../../api/services";
+import { ServiceFormModal } from "./Components/ServiceFormModal";
 import "./ServicesPage.css";
 
 export default function ServicesPage() {
   const params = useParams();
+  // if you always have businessId in URL, you can remove the fallback 1
   const businessId = useMemo(
     () => (params.businessId ? Number(params.businessId) : 1),
     [params.businessId]
@@ -19,8 +23,11 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+
   // ---------------------------------------------------------------------------
-  // Load services for this business
+  // Load services
   // ---------------------------------------------------------------------------
   async function load() {
     setLoading(true);
@@ -30,7 +37,7 @@ export default function ServicesPage() {
       const data = await listServices(businessId);
       setServices(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      setError(e instanceof Error ? e.message : "Failed to load services");
     } finally {
       setLoading(false);
     }
@@ -49,6 +56,21 @@ export default function ServicesPage() {
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
+
+  function openCreateModal() {
+    setEditingService(null);
+    setIsFormOpen(true);
+  }
+
+  function openEditModal(service: Service) {
+    setEditingService(service);
+    setIsFormOpen(true);
+  }
+
+  function closeModal() {
+    setIsFormOpen(false);
+    setEditingService(null);
+  }
 
   async function handleToggleActive(service: Service) {
     const newActive = !service.active;
@@ -79,7 +101,6 @@ export default function ServicesPage() {
     );
     if (!ok) return;
 
-    // optimistic remove
     const before = services;
     setServices((prev) => prev.filter((s) => s.id !== service.id));
 
@@ -91,14 +112,41 @@ export default function ServicesPage() {
     }
   }
 
-  function handleNewService() {
-    // For now just a placeholder – later we can open a modal with a form.
-    alert("New Service form will go here (popup like in mockup).");
-  }
+  // create or update from modal
+  async function handleSubmit(values: ServiceFormValues) {
+    try {
+      setError(null);
 
-  function handleEdit(service: Service) {
-    // Placeholder – later you can reuse the “New Service” popup in edit mode.
-    alert(`Edit Service "${service.name}" (open edit dialog here).`);
+      if (editingService) {
+        const updated = await updateService(businessId, editingService.id, {
+          name: values.name.trim(),
+          description: values.description?.trim() || null,
+          durationMinutes: values.durationMinutes,
+          priceEuros: values.priceEuros,
+          colorHex: values.colorHex?.trim() || null,
+          active: values.active,
+        });
+
+        setServices((prev) =>
+          prev.map((s) => (s.id === updated.id ? updated : s))
+        );
+      } else {
+        const created = await createService(businessId, {
+          name: values.name.trim(),
+          description: values.description?.trim() || null,
+          durationMinutes: values.durationMinutes,
+          priceEuros: values.priceEuros,
+          colorHex: values.colorHex?.trim() || null,
+          active: values.active,
+        });
+
+        setServices((prev) => [...prev, created]);
+      }
+
+      closeModal();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save service");
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -112,7 +160,7 @@ export default function ServicesPage() {
         <button
           type="button"
           className="services-new-btn"
-          onClick={handleNewService}
+          onClick={openCreateModal}
         >
           New Service
         </button>
@@ -156,7 +204,7 @@ export default function ServicesPage() {
                     <button
                       type="button"
                       className="services-icon-btn"
-                      onClick={() => handleEdit(s)}
+                      onClick={() => openEditModal(s)}
                       aria-label="Edit"
                     >
                       ✏️
@@ -177,7 +225,7 @@ export default function ServicesPage() {
         )}
       </div>
 
-      {/* Pagination placeholder – we’ll wire real data later */}
+      {/* Pagination placeholder */}
       <div className="services-pagination">
         <button className="services-page-btn" disabled>
           &lt;
@@ -187,6 +235,16 @@ export default function ServicesPage() {
           &gt;
         </button>
       </div>
+
+      {/* Add / Edit modal */}
+      {isFormOpen && (
+        <ServiceFormModal
+          mode={editingService ? "edit" : "create"}
+          initial={editingService || undefined}
+          onClose={closeModal}
+          onSubmit={handleSubmit}
+        />
+      )}
     </div>
   );
 }
