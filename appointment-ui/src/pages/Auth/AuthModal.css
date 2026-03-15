@@ -1,0 +1,141 @@
+.auth-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.auth-modal-shell {
+  width: 100%;
+  max-width: 760px;
+  min-height: 430px;
+  background: #f7f7f7;
+  border-radius: 8px;
+  padding: 22px 26px 26px;
+  box-sizing: border-box;
+}
+
+.auth-modal-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.auth-modal-logo {
+  font-size: 26px;
+  color: #6b7280;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+.auth-modal-close-btn {
+  border: none;
+  background: transparent;
+  font-size: 28px;
+  line-height: 1;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0;
+}
+
+.auth-modal-customer-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  padding: 12px 18px 0;
+}
+
+.auth-modal-single-layout {
+  display: flex;
+  justify-content: center;
+  padding-top: 16px;
+}
+
+.auth-modal-panel {
+  background: #fbfcfd;
+  border-radius: 8px;
+  padding: 26px 24px 20px;
+  box-sizing: border-box;
+}
+
+.auth-modal-panel--single {
+  width: 100%;
+  max-width: 300px;
+  min-height: 360px;
+}
+
+.auth-modal-heading {
+  margin: 0 0 26px;
+  text-align: center;
+  font-size: 28px;
+  font-weight: 500;
+  color: #20b8ac;
+}
+
+.auth-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.auth-modal-label {
+  font-size: 13px;
+  color: #9ca3af;
+  text-transform: lowercase;
+}
+
+.auth-modal-input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  padding: 0 12px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.auth-modal-primary-btn {
+  min-width: 108px;
+  height: 46px;
+  border: none;
+  background: #20b8ac;
+  color: #ffffff;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.auth-modal-primary-btn:hover {
+  background: #16a89d;
+}
+
+@media (max-width: 760px) {
+  .auth-modal-customer-layout {
+    grid-template-columns: 1fr;
+    max-width: 380px;
+    margin: 0 auto;
+    padding: 10px 0 0;
+  }
+
+  .auth-modal-shell {
+    padding: 18px;
+  }
+
+  .auth-modal-panel {
+    padding: 20px 18px;
+  }
+
+  .auth-modal-heading {
+    font-size: 24px;
+  }
+}
