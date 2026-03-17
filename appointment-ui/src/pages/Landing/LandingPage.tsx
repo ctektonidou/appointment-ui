@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthModal from "../../pages/Auth/AuthModal";
 import type { AuthModalRole } from "../../pages/Auth/AuthModal";
@@ -53,6 +53,7 @@ const DEMO_BUSINESSES: BusinessCard[] = [
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const loginMenuRef = useRef<HTMLDivElement | null>(null);
 
   const [industry, setIndustry] = useState("All industries");
   const [location, setLocation] = useState("All locations");
@@ -65,6 +66,25 @@ export default function LandingPage() {
 
   const [loginMenuOpen, setLoginMenuOpen] = useState(false);
   const [authModalRole, setAuthModalRole] = useState<AuthModalRole | null>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        loginMenuRef.current &&
+        !loginMenuRef.current.contains(event.target as Node)
+      ) {
+        setLoginMenuOpen(false);
+      }
+    }
+
+    if (loginMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [loginMenuOpen]);
 
   const filteredBusinesses = useMemo(() => {
     return DEMO_BUSINESSES.filter((business) => {
@@ -119,11 +139,13 @@ export default function LandingPage() {
         <div className="landing-logo">Schedio</div>
 
         <div className="landing-header-actions">
-          <div className="landing-login-wrap">
+          <div className="landing-login-wrap" ref={loginMenuRef}>
             <button
               type="button"
               className="landing-header-link"
               onClick={() => setLoginMenuOpen((prev) => !prev)}
+              aria-haspopup="menu"
+              aria-expanded={loginMenuOpen}
             >
               Login <span className="landing-caret">⌄</span>
             </button>
@@ -154,18 +176,6 @@ export default function LandingPage() {
               </div>
             )}
           </div>
-
-          <button
-            type="button"
-            className="landing-header-link"
-            onClick={onBusinessSignup}
-          >
-            Sign up
-          </button>
-
-          <button type="button" className="landing-profile-btn" aria-label="Profile">
-            ○
-          </button>
         </div>
       </header>
 

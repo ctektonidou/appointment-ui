@@ -11,13 +11,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 18px;
+  position: relative;
+  z-index: 50;
 }
 
 .landing-logo {
   font-size: 22px;
-  font-weight: 500;
-  color: #5f7b66;
-  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.3px;
 }
 
 .landing-header-actions {
@@ -27,34 +29,47 @@
   position: relative;
 }
 
-.landing-header-link {
-  border: none;
-  background: transparent;
-  color: #ffffff;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 0;
-}
-
-.landing-caret {
-  font-size: 14px;
-}
-
 .landing-login-wrap {
   position: relative;
 }
 
+.landing-header-link {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: transparent;
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
+}
+
+.landing-header-link:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.landing-caret {
+  font-size: 12px;
+  line-height: 1;
+}
+
 .landing-login-dropdown {
   position: absolute;
-  top: 40px;
-  left: 0;
-  min-width: 156px;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 170px;
   background: #ffffff;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   overflow: hidden;
-  z-index: 20;
+  z-index: 200;
 }
 
 .landing-login-option {
@@ -62,25 +77,15 @@
   border: none;
   background: #ffffff;
   text-align: left;
-  padding: 10px 14px;
-  font-size: 16px;
+  padding: 12px 14px;
+  font-size: 15px;
   color: #374151;
   cursor: pointer;
+  display: block;
 }
 
 .landing-login-option:hover {
   background: #f3f4f6;
-}
-
-.landing-profile-btn {
-  width: 34px;
-  height: 34px;
-  border: 2px solid #111827;
-  border-radius: 999px;
-  background: transparent;
-  color: #111827;
-  font-size: 18px;
-  cursor: pointer;
 }
 
 .landing-main {
@@ -131,6 +136,9 @@
   cursor: pointer;
   width: fit-content;
   padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .landing-primary-btn:hover {
@@ -227,6 +235,7 @@
 .landing-search-btn-wrap {
   display: flex;
   justify-content: flex-end;
+  align-items: flex-end;
 }
 
 .landing-search-btn {
@@ -239,6 +248,9 @@
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .landing-search-btn:hover {
@@ -257,6 +269,11 @@
 .landing-search-count {
   font-size: 14px;
   color: #4b5563;
+}
+
+.landing-search-empty {
+  font-size: 14px;
+  color: #6b7280;
 }
 
 .landing-link-btn {
@@ -410,6 +427,8 @@
 
   .landing-header-link {
     font-size: 16px;
+    min-height: 36px;
+    padding: 0 14px;
   }
 
   .landing-hero-illustration {

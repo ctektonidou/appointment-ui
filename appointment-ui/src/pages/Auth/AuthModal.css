@@ -20,6 +20,10 @@
   box-sizing: border-box;
 }
 
+.auth-modal-shell--wide {
+  max-width: 980px;
+}
+
 .auth-modal-topbar {
   display: flex;
   justify-content: space-between;
@@ -44,17 +48,16 @@
   padding: 0;
 }
 
-.auth-modal-customer-layout {
+.auth-modal-two-column-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 28px;
   padding: 12px 18px 0;
 }
 
-.auth-modal-single-layout {
-  display: flex;
-  justify-content: center;
-  padding-top: 16px;
+.auth-modal-two-column-layout--wide {
+  grid-template-columns: 320px 1fr;
+  align-items: start;
 }
 
 .auth-modal-panel {
@@ -64,9 +67,11 @@
   box-sizing: border-box;
 }
 
-.auth-modal-panel--single {
-  width: 100%;
-  max-width: 300px;
+.auth-modal-panel--login {
+  min-height: 360px;
+}
+
+.auth-modal-panel--signup {
   min-height: 360px;
 }
 
@@ -78,11 +83,34 @@
   color: #20b8ac;
 }
 
+.auth-modal-heading--left {
+  text-align: left;
+}
+
+.auth-modal-form-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.auth-modal-form-grid--two {
+  grid-template-columns: 1fr 1fr;
+  column-gap: 18px;
+  row-gap: 14px;
+}
+
 .auth-modal-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-bottom: 16px;
+}
+
+.auth-modal-form-grid .auth-modal-field {
+  margin-bottom: 0;
+}
+
+.auth-modal-field--span-2 {
+  grid-column: span 2;
 }
 
 .auth-modal-label {
@@ -103,6 +131,10 @@
   box-sizing: border-box;
 }
 
+select.auth-modal-input {
+  appearance: auto;
+}
+
 .auth-modal-primary-btn {
   min-width: 108px;
   height: 46px;
@@ -113,16 +145,39 @@
   font-size: 18px;
   font-weight: 500;
   cursor: pointer;
+  margin-top: 22px;
 }
 
 .auth-modal-primary-btn:hover {
   background: #16a89d;
 }
 
-@media (max-width: 760px) {
-  .auth-modal-customer-layout {
+.auth-modal-logo-upload-placeholder {
+  height: 72px;
+  border: 1px dashed #cfd4dc;
+  border-radius: 8px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: #6b7280;
+}
+
+@media (max-width: 920px) {
+  .auth-modal-shell--wide {
+    max-width: 760px;
+  }
+
+  .auth-modal-two-column-layout--wide {
     grid-template-columns: 1fr;
-    max-width: 380px;
+  }
+}
+
+@media (max-width: 760px) {
+  .auth-modal-two-column-layout {
+    grid-template-columns: 1fr;
+    max-width: 420px;
     margin: 0 auto;
     padding: 10px 0 0;
   }
@@ -138,4 +193,36 @@
   .auth-modal-heading {
     font-size: 24px;
   }
+
+  .auth-modal-form-grid--two {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-modal-field--span-2 {
+    grid-column: span 1;
+  }
+}
+
+.auth-modal-message {
+  margin: 0 18px 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.auth-modal-message--error {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.auth-modal-message--success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.auth-modal-primary-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }

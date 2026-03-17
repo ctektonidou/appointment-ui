@@ -1,0 +1,58 @@
+export type LoginRequest = {
+  email: string;
+  password: string;
+};
+
+export type SignupRequest = {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: "customer" | "staff" | "business";
+};
+
+export type AuthResponse = {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  message: string;
+};
+
+const BASE_URL = "http://localhost:8080/api/auth";
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Request failed");
+  }
+
+  return data as T;
+}
+
+export async function login(request: LoginRequest): Promise<AuthResponse> {
+  const response = await fetch(`${BASE_URL}/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  return handleResponse<AuthResponse>(response);
+}
+
+export async function signup(request: SignupRequest): Promise<AuthResponse> {
+  const response = await fetch(`${BASE_URL}/signup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  return handleResponse<AuthResponse>(response);
+}
