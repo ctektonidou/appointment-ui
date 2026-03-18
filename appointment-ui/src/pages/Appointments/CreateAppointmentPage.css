@@ -100,9 +100,20 @@
   text-transform: lowercase;
 }
 
-.create-appointment-select,
-.create-appointment-input {
+.create-appointment-select{
   width: 100%;
+  min-width: 0;
+  height: 36px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 14px;
+}
+
+.create-appointment-input {
+  width: 80%;
   min-width: 0;
   height: 36px;
   border: 1px solid #d1d5db;

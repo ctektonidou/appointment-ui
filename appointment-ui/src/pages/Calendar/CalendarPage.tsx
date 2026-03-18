@@ -10,6 +10,7 @@ import type {
 } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enUS } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 
 import "./CalendarPage.css";
 
@@ -88,6 +89,7 @@ const DEMO_EVENTS: CalendarEvent[] = [
 ];
 
 export default function CalendarPage() {
+  const navigate = useNavigate();
   const role: UserRole = CURRENT_ROLE;
   const isOwner = role === "owner";
   const isStaff = role === "staff";
@@ -117,8 +119,9 @@ export default function CalendarPage() {
         ? "Appointments Calendar"
         : "My Appointments Calendar";
 
-  const newAppointmentLabel =
-    role === "customer" ? "New Appointment" : "New Appointment";
+  function onCreateAppointment() {
+    navigate("/create-appointment");
+  }
 
   return (
     <div className="calendar-page">
@@ -167,8 +170,8 @@ export default function CalendarPage() {
             </button>
           </div>
 
-          <button type="button" className="calendar-btn-primary">
-            {newAppointmentLabel}
+          <button type="button" className="calendar-btn-primary" onClick={onCreateAppointment}>
+            New Appointment
           </button>
         </div>
       </div>

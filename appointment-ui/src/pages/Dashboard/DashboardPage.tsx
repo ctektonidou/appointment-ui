@@ -1,5 +1,6 @@
 // src/pages/Dashboard/DashboardPage.tsx
 import "./DashboardPage.css";
+import { useNavigate } from "react-router-dom";
 
 type UserRole = "owner" | "staff" | "customer";
 
@@ -23,6 +24,7 @@ function StatCard({ value, label, subLabel }: StatCardProps) {
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const role = CURRENT_ROLE;
 
   const isOwner = role === "owner";
@@ -34,8 +36,21 @@ export default function DashboardPage() {
       ? "Appointments Business Status"
       : "Appointments Status";
 
-  const primaryActionText =
-    role === "customer" ? "Create Appointment" : "Create Application";
+  function onCreateAppointment() {
+    navigate("/create-appointment");
+  }
+
+  function shareLink() {
+    const url = window.location.origin;
+
+    navigator.clipboard.writeText(url)
+      .then(() => {
+        alert("Booking link copied!");
+      })
+      .catch(() => {
+        alert("Failed to copy link");
+      });
+  }
 
   return (
     <div className="dashboard-page">
@@ -57,12 +72,12 @@ export default function DashboardPage() {
 
       {/* actions row */}
       <div className="dash-actions-row">
-        <button className="dash-btn dash-btn-primary">
-          {primaryActionText}
+        <button className="dash-btn dash-btn-primary" onClick={onCreateAppointment}>
+          Create Appointment
         </button>
 
         {(isOwner || isStaff) && (
-          <button className="dash-btn dash-btn-secondary">
+          <button className="dash-btn dash-btn-secondary" onClick={shareLink}>
             Share Book Link
           </button>
         )}

@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { mockCurrentUser } from "../../lib/currentUser";
 import type { UserRole } from "../../types/auth";
 import "./AppLayout.css";
@@ -38,13 +38,18 @@ const menuByRole: Record<UserRole, MenuItem[]> = {
 };
 
 export default function AppLayout() {
+  const navigate = useNavigate();
   const user = mockCurrentUser;
   const menu = menuByRole[user.role];
 
   function handleLogout() {
-    // TODO: replace with real logout later
-    console.log("logout clicked");
-  }
+      localStorage.removeItem("authUser");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("userEmail");
+      navigate("/");
+      window.location.reload();
+    }
 
   return (
     <div className="app-shell">
