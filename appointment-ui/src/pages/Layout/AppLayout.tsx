@@ -1,5 +1,4 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { mockCurrentUser } from "../../lib/currentUser";
 import type { UserRole } from "../../types/auth";
 import "./AppLayout.css";
 import TopBar from "./TopBar";
@@ -7,6 +6,15 @@ import TopBar from "./TopBar";
 type MenuItem = {
   to: string;
   label: string;
+};
+
+type StoredUser = {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  businessName?: string;
 };
 
 const menuByRole: Record<UserRole, MenuItem[]> = {
@@ -37,26 +45,51 @@ const menuByRole: Record<UserRole, MenuItem[]> = {
   ],
 };
 
+function getStoredUser(): StoredUser | null {
+  const raw = localStorage.getItem("authUser");
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as StoredUser;
+  } catch {
+    return null;
+  }
+}
+
+function getStoredUserRole(): UserRole {
+  const storedRole = localStorage.getItem("userRole");
+
+  if (storedRole === "business" || storedRole === "owner") return "owner";
+  if (storedRole === "staff") return "staff";
+  return "customer";
+}
+
 export default function AppLayout() {
   const navigate = useNavigate();
-  const user = mockCurrentUser;
-  const menu = menuByRole[user.role];
+  const user = getStoredUser();
+  const role = getStoredUserRole();
+  const menu = menuByRole[role];
+
+  const sidebarTitle =
+    role === "customer"
+      ? `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || "Customer"
+      : user?.businessName ||
+        `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() ||
+        "Business";
 
   function handleLogout() {
-      localStorage.removeItem("authUser");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("userRole");
-      localStorage.removeItem("userEmail");
-      navigate("/");
-      window.location.reload();
-    }
+    localStorage.removeItem("authUser");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userEmail");
+    navigate("/");
+    window.location.reload();
+  }
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="sidebar-header">
-          {user.businessName}
-        </div>
+        <div className="sidebar-header">{sidebarTitle}</div>
 
         <nav className="sidebar-menu">
           {menu.map((item) => (

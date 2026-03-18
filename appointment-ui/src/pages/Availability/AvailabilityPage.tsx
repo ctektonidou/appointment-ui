@@ -2,9 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import "./AvailabilityPage.css";
 
 type UserRole = "owner" | "staff" | "customer";
-const CURRENT_ROLE: UserRole = "owner"; // TODO: replace with auth/context
-const CURRENT_STAFF_ID = 2; // TODO: replace with logged-in staff id from auth/context
-
 type AvailabilityTopTab = "businessHours" | "availability" | "blockedDays";
 type DayKey = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
 
@@ -46,6 +43,22 @@ const DAY_LABELS: Record<DayKey, string> = {
   Sat: "Saturday",
   Sun: "Sunday",
 };
+
+function getStoredUserRole(): UserRole {
+  const storedRole = localStorage.getItem("userRole");
+
+  if (storedRole === "business" || storedRole === "owner") return "owner";
+  if (storedRole === "staff") return "staff";
+  return "customer";
+}
+
+function getStoredUserId(): number | null {
+  const storedUserId = localStorage.getItem("userId");
+  if (!storedUserId) return null;
+
+  const parsed = Number(storedUserId);
+  return Number.isNaN(parsed) ? null : parsed;
+}
 
 function buildTimeOptions(startHour = 8, endHour = 21, stepMinutes = 30): string[] {
   const out: string[] = [];
@@ -126,10 +139,10 @@ function cloneStaffList(source: StaffAvailability[]) {
 }
 
 export default function AvailabilityPage() {
-  const role = CURRENT_ROLE;
+  const role = getStoredUserRole();
   const isOwner = role === "owner";
   const isStaff = role === "staff";
-  const loggedInStaffId = CURRENT_STAFF_ID;
+  const loggedInStaffId = getStoredUserId();
 
   const [topTab, setTopTab] = useState<AvailabilityTopTab>(
     isStaff ? "availability" : "businessHours"
@@ -148,7 +161,6 @@ export default function AvailabilityPage() {
     }
   }, [isStaff, topTab]);
 
-  // ---------------- BUSINESS HOURS ----------------
   const [businessHours, setBusinessHours] = useState<BusinessHoursDay[]>([
     { day: "Mon", label: "Monday", enabled: true, from: "09:00", to: "17:00" },
     { day: "Tue", label: "Tuesday", enabled: true, from: "09:00", to: "17:00" },
@@ -175,7 +187,6 @@ export default function AvailabilityPage() {
     );
   }
 
-  // ---------------- STAFF AVAILABILITY ----------------
   const [staffAvailabilityByDay, setStaffAvailabilityByDay] = useState<Record<DayKey, StaffAvailability[]>>({
     Mon: cloneStaffList(BASE_STAFF),
     Tue: cloneStaffList(BASE_STAFF),
@@ -251,7 +262,6 @@ export default function AvailabilityPage() {
     }));
   }
 
-  // ---------------- BLOCKED DAYS ----------------
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([
     { id: 1, date: "2025-12-26", reason: "Christmas 2nd day" },
     { id: 2, date: "2025-12-25", reason: "Christmas 1st day" },

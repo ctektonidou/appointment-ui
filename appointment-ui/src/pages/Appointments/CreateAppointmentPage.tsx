@@ -3,7 +3,6 @@ import { useLocation } from "react-router-dom";
 import "./CreateAppointmentPage.css";
 
 type UserRole = "owner" | "staff" | "customer";
-const CURRENT_ROLE: UserRole = "customer"; // TODO: replace with auth/context
 
 type StepKey = 1 | 2 | 3 | 4;
 
@@ -109,6 +108,14 @@ const DEMO_STAFF: StaffMember[] = [
 
 const DEMO_TIME_SLOTS = ["9:00", "9:30", "10:00", "11:00", "12:00", "12:30", "14:00"];
 
+function getStoredUserRole(): UserRole {
+  const storedRole = localStorage.getItem("userRole");
+
+  if (storedRole === "business" || storedRole === "owner") return "owner";
+  if (storedRole === "staff") return "staff";
+  return "customer";
+}
+
 function getDaysInMonth(year: number, monthIndex: number) {
   return new Date(year, monthIndex + 1, 0).getDate();
 }
@@ -141,6 +148,8 @@ function buildMonthGrid(year: number, monthIndex: number) {
 
 export default function CreateAppointmentPage() {
   const location = useLocation();
+  const role = getStoredUserRole();
+
   const navigationState = location.state as
     | {
         step?: StepKey;
@@ -148,13 +157,12 @@ export default function CreateAppointmentPage() {
       }
     | undefined;
 
-  const isCustomer = CURRENT_ROLE === "customer";
+  const isCustomer = role === "customer";
 
   const [currentStep, setCurrentStep] = useState<StepKey>(
     navigationState?.step ?? 1
   );
 
-  // Step 1
   const [industry, setIndustry] = useState("All industries");
   const [locationFilter, setLocationFilter] = useState("All locations");
   const [searchName, setSearchName] = useState("");
@@ -167,22 +175,19 @@ export default function CreateAppointmentPage() {
     navigationState?.selectedBusiness ?? null
   );
 
-  // Step 2
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
 
-  // Step 3
   const [selectedStaffId, setSelectedStaffId] = useState<number | "">("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState("");
 
-  // Step 4
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
 
-  const calendarMonthIndex = 2; // March
+  const calendarMonthIndex = 2;
   const calendarYear = 2026;
   const monthGrid = useMemo(
     () => buildMonthGrid(calendarYear, calendarMonthIndex),
@@ -284,15 +289,6 @@ export default function CreateAppointmentPage() {
     });
 
     alert("Appointment created successfully (demo)");
-  }
-
-  if (!isCustomer) {
-    return (
-      <div className="create-appointment-page">
-        <h1 className="create-appointment-title">Create Appointment</h1>
-        <p>Only customers can access this page.</p>
-      </div>
-    );
   }
 
   return (
