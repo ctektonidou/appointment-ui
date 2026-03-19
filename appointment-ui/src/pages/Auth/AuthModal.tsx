@@ -60,6 +60,13 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
   const [businessSignupAddress, setBusinessSignupAddress] = useState("");
   const [businessSignupTimezone, setBusinessSignupTimezone] = useState("");
 
+  const [showCustomerLoginPassword, setShowCustomerLoginPassword] = useState(false);
+  const [showCustomerSignupPassword, setShowCustomerSignupPassword] = useState(false);
+  const [showStaffLoginPassword, setShowStaffLoginPassword] = useState(false);
+  const [showStaffSignupPassword, setShowStaffSignupPassword] = useState(false);
+  const [showBusinessLoginPassword, setShowBusinessLoginPassword] = useState(false);
+  const [showBusinessSignupPassword, setShowBusinessSignupPassword] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -266,8 +273,7 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
   return (
     <div className="auth-modal-overlay" onClick={onClose}>
       <div
-        className={`auth-modal-shell ${isStaff || isBusiness ? "auth-modal-shell--wide" : ""
-          }`}
+        className={`auth-modal-shell ${isStaff || isBusiness ? "auth-modal-shell--wide" : ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="auth-modal-topbar">
@@ -282,8 +288,17 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
           </button>
         </div>
 
-        {errorMessage && <div className="auth-modal-message auth-modal-message--error">{errorMessage}</div>}
-        {successMessage && <div className="auth-modal-message auth-modal-message--success">{successMessage}</div>}
+        {errorMessage && (
+          <div className="auth-modal-message auth-modal-message--error">
+            {errorMessage}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="auth-modal-message auth-modal-message--success">
+            {successMessage}
+          </div>
+        )}
 
         {isCustomer && (
           <div className="auth-modal-two-column-layout">
@@ -302,12 +317,22 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
 
               <div className="auth-modal-field">
                 <label className="auth-modal-label">password</label>
-                <input
-                  className="auth-modal-input"
-                  type="password"
-                  value={customerLoginPassword}
-                  onChange={(e) => setCustomerLoginPassword(e.target.value)}
-                />
+                <div className="auth-modal-password-wrap">
+                  <input
+                    className="auth-modal-input auth-modal-input--password"
+                    type={showCustomerLoginPassword ? "text" : "password"}
+                    value={customerLoginPassword}
+                    onChange={(e) => setCustomerLoginPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="auth-modal-password-toggle"
+                    onClick={() => setShowCustomerLoginPassword((prev) => !prev)}
+                    aria-label={showCustomerLoginPassword ? "Hide password" : "Show password"}
+                  >
+                    {showCustomerLoginPassword ? "🙈" : "👁"}
+                  </button>
+                </div>
               </div>
 
               <button type="submit" className="auth-modal-primary-btn" disabled={isSubmitting}>
@@ -350,12 +375,22 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
 
               <div className="auth-modal-field">
                 <label className="auth-modal-label">password</label>
-                <input
-                  className="auth-modal-input"
-                  type="password"
-                  value={customerSignupPassword}
-                  onChange={(e) => setCustomerSignupPassword(e.target.value)}
-                />
+                <div className="auth-modal-password-wrap">
+                  <input
+                    className="auth-modal-input auth-modal-input--password"
+                    type={showCustomerSignupPassword ? "text" : "password"}
+                    value={customerSignupPassword}
+                    onChange={(e) => setCustomerSignupPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="auth-modal-password-toggle"
+                    onClick={() => setShowCustomerSignupPassword((prev) => !prev)}
+                    aria-label={showCustomerSignupPassword ? "Hide password" : "Show password"}
+                  >
+                    {showCustomerSignupPassword ? "🙈" : "👁"}
+                  </button>
+                </div>
               </div>
 
               <button type="submit" className="auth-modal-primary-btn" disabled={isSubmitting}>
@@ -382,12 +417,22 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
 
               <div className="auth-modal-field">
                 <label className="auth-modal-label">password</label>
-                <input
-                  className="auth-modal-input"
-                  type="password"
-                  value={staffLoginPassword}
-                  onChange={(e) => setStaffLoginPassword(e.target.value)}
-                />
+                <div className="auth-modal-password-wrap">
+                  <input
+                    className="auth-modal-input auth-modal-input--password"
+                    type={showStaffLoginPassword ? "text" : "password"}
+                    value={staffLoginPassword}
+                    onChange={(e) => setStaffLoginPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="auth-modal-password-toggle"
+                    onClick={() => setShowStaffLoginPassword((prev) => !prev)}
+                    aria-label={showStaffLoginPassword ? "Hide password" : "Show password"}
+                  >
+                    {showStaffLoginPassword ? "🙈" : "👁"}
+                  </button>
+                </div>
               </div>
 
               <button type="submit" className="auth-modal-primary-btn" disabled={isSubmitting}>
@@ -443,12 +488,22 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
 
                 <div className="auth-modal-field auth-modal-field--span-2">
                   <label className="auth-modal-label">password</label>
-                  <input
-                    className="auth-modal-input"
-                    type="password"
-                    value={staffSignupPassword}
-                    onChange={(e) => setStaffSignupPassword(e.target.value)}
-                  />
+                  <div className="auth-modal-password-wrap">
+                    <input
+                      className="auth-modal-input auth-modal-input--password"
+                      type={showStaffSignupPassword ? "text" : "password"}
+                      value={staffSignupPassword}
+                      onChange={(e) => setStaffSignupPassword(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="auth-modal-password-toggle"
+                      onClick={() => setShowStaffSignupPassword((prev) => !prev)}
+                      aria-label={showStaffSignupPassword ? "Hide password" : "Show password"}
+                    >
+                      {showStaffSignupPassword ? "🙈" : "👁"}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -476,12 +531,22 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
 
               <div className="auth-modal-field">
                 <label className="auth-modal-label">password</label>
-                <input
-                  className="auth-modal-input"
-                  type="password"
-                  value={businessLoginPassword}
-                  onChange={(e) => setBusinessLoginPassword(e.target.value)}
-                />
+                <div className="auth-modal-password-wrap">
+                  <input
+                    className="auth-modal-input auth-modal-input--password"
+                    type={showBusinessLoginPassword ? "text" : "password"}
+                    value={businessLoginPassword}
+                    onChange={(e) => setBusinessLoginPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="auth-modal-password-toggle"
+                    onClick={() => setShowBusinessLoginPassword((prev) => !prev)}
+                    aria-label={showBusinessLoginPassword ? "Hide password" : "Show password"}
+                  >
+                    {showBusinessLoginPassword ? "🙈" : "👁"}
+                  </button>
+                </div>
               </div>
 
               <button type="submit" className="auth-modal-primary-btn" disabled={isSubmitting}>
@@ -544,12 +609,22 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
 
                 <div className="auth-modal-field">
                   <label className="auth-modal-label">password</label>
-                  <input
-                    className="auth-modal-input"
-                    type="password"
-                    value={businessSignupPassword}
-                    onChange={(e) => setBusinessSignupPassword(e.target.value)}
-                  />
+                  <div className="auth-modal-password-wrap">
+                    <input
+                      className="auth-modal-input auth-modal-input--password"
+                      type={showBusinessSignupPassword ? "text" : "password"}
+                      value={businessSignupPassword}
+                      onChange={(e) => setBusinessSignupPassword(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="auth-modal-password-toggle"
+                      onClick={() => setShowBusinessSignupPassword((prev) => !prev)}
+                      aria-label={showBusinessSignupPassword ? "Hide password" : "Show password"}
+                    >
+                      {showBusinessSignupPassword ? "🙈" : "👁"}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="auth-modal-field">

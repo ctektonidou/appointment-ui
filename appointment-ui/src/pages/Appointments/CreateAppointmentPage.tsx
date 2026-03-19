@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import "./CreateAppointmentPage.css";
 
@@ -89,13 +89,10 @@ const DEMO_SERVICES: ServiceItem[] = [
   { id: 4, businessId: 1, name: "Service 1", durationMinutes: 30, price: 50 },
   { id: 5, businessId: 1, name: "Service 1", durationMinutes: 30, price: 50 },
   { id: 6, businessId: 1, name: "Service 1", durationMinutes: 30, price: 50 },
-
   { id: 7, businessId: 2, name: "Cut", durationMinutes: 30, price: 25 },
   { id: 8, businessId: 2, name: "Colour", durationMinutes: 60, price: 55 },
-
   { id: 9, businessId: 3, name: "Massage", durationMinutes: 60, price: 70 },
   { id: 10, businessId: 3, name: "Facial", durationMinutes: 45, price: 55 },
-
   { id: 11, businessId: 4, name: "Fade", durationMinutes: 30, price: 20 },
   { id: 12, businessId: 4, name: "Beard Trim", durationMinutes: 20, price: 15 },
 ];
@@ -106,7 +103,26 @@ const DEMO_STAFF: StaffMember[] = [
   { id: 3, name: "Maria Green" },
 ];
 
-const DEMO_TIME_SLOTS = ["9:00", "9:30", "10:00", "11:00", "12:00", "12:30", "14:00"];
+const BASE_TIME_SLOTS = [
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "13:00",
+  "13:30",
+  "14:00",
+  "14:30",
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
+  "17:00",
+  "17:30",
+];
 
 function getStoredUserRole(): UserRole {
   const storedRole = localStorage.getItem("userRole");
@@ -146,6 +162,47 @@ function buildMonthGrid(year: number, monthIndex: number) {
   return cells;
 }
 
+function getMonthName(date: Date) {
+  return date.toLocaleString("en-US", { month: "long" });
+}
+
+function createDateOnly(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function isSameDay(a: Date | null, b: Date | null) {
+  if (!a || !b) return false;
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+// demo async fetch for slots
+async function getAvailableTimeSlots(params: {
+  businessId: number;
+  serviceId: number;
+  staffId: number;
+  date: Date;
+}): Promise<string[]> {
+  const { staffId, date } = params;
+
+  await new Promise((resolve) => setTimeout(resolve, 350));
+
+  const dayOfMonth = date.getDate();
+
+  if (staffId === 1) {
+    return BASE_TIME_SLOTS.filter((_, index) => (index + dayOfMonth) % 4 !== 0);
+  }
+
+  if (staffId === 2) {
+    return BASE_TIME_SLOTS.filter((_, index) => (index + dayOfMonth) % 3 !== 0);
+  }
+
+  return BASE_TIME_SLOTS.filter((_, index) => (index + dayOfMonth) % 5 !== 0);
+}
+
 export default function CreateAppointmentPage() {
   const location = useLocation();
   const role = getStoredUserRole();
@@ -158,6 +215,8 @@ export default function CreateAppointmentPage() {
     | undefined;
 
   const isCustomer = role === "customer";
+
+  const today = useMemo(() => createDateOnly(new Date()), []);
 
   const [currentStep, setCurrentStep] = useState<StepKey>(
     navigationState?.step ?? 1
@@ -178,8 +237,11 @@ export default function CreateAppointmentPage() {
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
 
   const [selectedStaffId, setSelectedStaffId] = useState<number | "">("");
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(today);
   const [selectedTime, setSelectedTime] = useState("");
+
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -187,8 +249,10 @@ export default function CreateAppointmentPage() {
   const [customerNotes, setCustomerNotes] = useState("");
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
 
-  const calendarMonthIndex = 2;
-  const calendarYear = 2026;
+  const visibleMonthDate = selectedDate ?? today;
+  const calendarMonthIndex = visibleMonthDate.getMonth();
+  const calendarYear = visibleMonthDate.getFullYear();
+
   const monthGrid = useMemo(
     () => buildMonthGrid(calendarYear, calendarMonthIndex),
     [calendarYear, calendarMonthIndex]
@@ -221,6 +285,57 @@ export default function CreateAppointmentPage() {
     return DEMO_STAFF.find((staff) => staff.id === selectedStaffId) || null;
   }, [selectedStaffId]);
 
+  useEffect(() => {
+    if (currentStep !== 3) return;
+
+    if (!selectedDate) {
+      setSelectedDate(today);
+    }
+  }, [currentStep, selectedDate, today]);
+
+  useEffect(() => {
+    async function loadSlots() {
+      if (
+        currentStep !== 3 ||
+        !selectedBusiness ||
+        !selectedService ||
+        !selectedDate ||
+        !selectedStaffId
+      ) {
+        setAvailableTimeSlots([]);
+        setSelectedTime("");
+        return;
+      }
+
+      setIsLoadingSlots(true);
+      setSelectedTime("");
+
+      try {
+        const slots = await getAvailableTimeSlots({
+          businessId: selectedBusiness.id,
+          serviceId: selectedService.id,
+          staffId: selectedStaffId,
+          date: selectedDate,
+        });
+
+        setAvailableTimeSlots(slots);
+      } catch (error) {
+        console.error("Failed to load time slots", error);
+        setAvailableTimeSlots([]);
+      } finally {
+        setIsLoadingSlots(false);
+      }
+    }
+
+    loadSlots();
+  }, [
+    currentStep,
+    selectedBusiness,
+    selectedService,
+    selectedDate,
+    selectedStaffId,
+  ]);
+
   function onSearch() {
     setSubmittedFilters({
       industry,
@@ -232,6 +347,9 @@ export default function CreateAppointmentPage() {
   function onViewServices(business: BusinessCard) {
     setSelectedBusiness(business);
     setSelectedService(null);
+    setSelectedStaffId("");
+    setSelectedTime("");
+    setAvailableTimeSlots([]);
     setCurrentStep(2);
   }
 
@@ -265,6 +383,13 @@ export default function CreateAppointmentPage() {
 
   function onContinueFromService() {
     if (!selectedService) return;
+
+    if (!selectedDate) {
+      setSelectedDate(today);
+    }
+
+    setSelectedTime("");
+    setAvailableTimeSlots([]);
     setCurrentStep(3);
   }
 
@@ -515,8 +640,8 @@ export default function CreateAppointmentPage() {
               <div className="date-time-left">
                 <div className="simple-calendar">
                   <div className="simple-calendar-header">
-                    <span>March</span>
-                    <span>2026</span>
+                    <span>{getMonthName(visibleMonthDate)}</span>
+                    <span>{calendarYear}</span>
                   </div>
 
                   <div className="simple-calendar-weekdays">
@@ -529,11 +654,11 @@ export default function CreateAppointmentPage() {
 
                   <div className="simple-calendar-grid">
                     {monthGrid.map((cell, index) => {
-                      const isSelected =
-                        cell !== null &&
-                        selectedDate?.getFullYear() === 2026 &&
-                        selectedDate?.getMonth() === 2 &&
-                        selectedDate?.getDate() === cell;
+                      const cellDate =
+                        cell === null ? null : new Date(calendarYear, calendarMonthIndex, cell);
+
+                      const isSelected = cellDate !== null && isSameDay(selectedDate, cellDate);
+                      const isToday = cellDate !== null && isSameDay(today, cellDate);
 
                       return (
                         <button
@@ -544,12 +669,14 @@ export default function CreateAppointmentPage() {
                               ? "simple-calendar-day simple-calendar-day--empty"
                               : isSelected
                               ? "simple-calendar-day simple-calendar-day--selected"
+                              : isToday
+                              ? "simple-calendar-day simple-calendar-day--today"
                               : "simple-calendar-day"
                           }
                           disabled={cell === null}
                           onClick={() => {
-                            if (cell === null) return;
-                            setSelectedDate(new Date(2026, 2, cell));
+                            if (cellDate === null) return;
+                            setSelectedDate(cellDate);
                           }}
                         >
                           {cell ?? ""}
@@ -562,22 +689,42 @@ export default function CreateAppointmentPage() {
                 <div className="select-time-section">
                   <div className="select-time-title">Select Time</div>
 
-                  <div className="time-slot-grid">
-                    {DEMO_TIME_SLOTS.map((slot) => (
-                      <button
-                        key={slot}
-                        type="button"
-                        className={
-                          selectedTime === slot
-                            ? "time-slot-btn time-slot-btn--selected"
-                            : "time-slot-btn"
-                        }
-                        onClick={() => setSelectedTime(slot)}
-                      >
-                        {slot}
-                      </button>
-                    ))}
-                  </div>
+                  {!selectedStaffId && (
+                    <div className="create-appointment-empty">
+                      Select staff first to load available times.
+                    </div>
+                  )}
+
+                  {selectedStaffId && isLoadingSlots && (
+                    <div className="create-appointment-empty">
+                      Loading available times...
+                    </div>
+                  )}
+
+                  {selectedStaffId && !isLoadingSlots && availableTimeSlots.length === 0 && (
+                    <div className="create-appointment-empty">
+                      No available time slots for the selected date.
+                    </div>
+                  )}
+
+                  {selectedStaffId && !isLoadingSlots && availableTimeSlots.length > 0 && (
+                    <div className="time-slot-grid">
+                      {availableTimeSlots.map((slot) => (
+                        <button
+                          key={slot}
+                          type="button"
+                          className={
+                            selectedTime === slot
+                              ? "time-slot-btn time-slot-btn--selected"
+                              : "time-slot-btn"
+                          }
+                          onClick={() => setSelectedTime(slot)}
+                        >
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

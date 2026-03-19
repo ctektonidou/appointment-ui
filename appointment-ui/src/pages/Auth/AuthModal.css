@@ -226,3 +226,31 @@ select.auth-modal-input {
   opacity: 0.7;
   cursor: not-allowed;
 }
+
+.auth-modal-password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-modal-input--password {
+  padding-right: 44px;
+}
+
+.auth-modal-password-toggle {
+  position: absolute;
+  right: 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-modal-password-toggle:focus {
+  outline: none;
+}
