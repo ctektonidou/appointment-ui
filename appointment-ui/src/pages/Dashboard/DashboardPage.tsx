@@ -4,8 +4,19 @@ import { useNavigate } from "react-router-dom";
 
 type UserRole = "owner" | "staff" | "customer";
 
-// TODO: replace with real role from auth / context
-const CURRENT_ROLE: UserRole = "staff";
+function getUserRole(): UserRole {
+  const storedRole = localStorage.getItem("userRole");
+
+  if (
+    storedRole === "owner" ||
+    storedRole === "staff" ||
+    storedRole === "customer"
+  ) {
+    return storedRole;
+  }
+
+  return "customer";
+}
 
 type StatCardProps = {
   value: string;
@@ -25,7 +36,7 @@ function StatCard({ value, label, subLabel }: StatCardProps) {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const role = CURRENT_ROLE;
+  const role: UserRole = getUserRole();
 
   const isOwner = role === "owner";
   const isStaff = role === "staff";
@@ -43,7 +54,8 @@ export default function DashboardPage() {
   function shareLink() {
     const url = window.location.origin;
 
-    navigator.clipboard.writeText(url)
+    navigator.clipboard
+      .writeText(url)
       .then(() => {
         alert("Booking link copied!");
       })
@@ -54,15 +66,16 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard-page">
-      {/* title row */}
       <div className="dash-header-row">
         <h1 className="dash-title">{title}</h1>
         <div className="dash-date">08/01/2026</div>
       </div>
 
-      {/* KPI row */}
       <div className="dash-stat-row">
-        <StatCard value={isCustomer ? "1" : isStaff ? "3" : "7"} label="TODAY" />
+        <StatCard
+          value={isCustomer ? "1" : isStaff ? "3" : "7"}
+          label="TODAY"
+        />
         <StatCard value="32" label="THIS WEEK" />
         <StatCard value="3%" label="CANCEL RATE" />
         {isOwner && (
@@ -70,7 +83,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* actions row */}
       <div className="dash-actions-row">
         <button className="dash-btn dash-btn-primary" onClick={onCreateAppointment}>
           Create Appointment
@@ -83,7 +95,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* main grid */}
       <div className="dash-grid">
         <section className="dash-card">
           <div className="dash-card-header">
@@ -131,7 +142,6 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            {/* Placeholder chart area – later we can replace with real chart */}
             <div className="dash-chart-placeholder">
               Chart area
             </div>

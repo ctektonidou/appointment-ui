@@ -1,13 +1,7 @@
 // src/pages/Calendar/CalendarPage.tsx
 import { useMemo, useState } from "react";
-import {
-  Calendar,
-  dateFnsLocalizer,
-} from "react-big-calendar";
-import type {
-  View,
-  Event as RBCEvent,
-} from "react-big-calendar";
+import { Calendar, dateFnsLocalizer } from "react-big-calendar";
+import type { View, Event as RBCEvent } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
@@ -17,8 +11,19 @@ import "./CalendarPage.css";
 // --------- role handling (same style as Dashboard) ----------
 type UserRole = "owner" | "staff" | "customer";
 
-// TODO: later get from auth / context
-const CURRENT_ROLE: UserRole = "owner";
+function getUserRole(): UserRole {
+  const storedRole = localStorage.getItem("userRole");
+
+  if (
+    storedRole === "owner" ||
+    storedRole === "staff" ||
+    storedRole === "customer"
+  ) {
+    return storedRole;
+  }
+
+  return "customer";
+}
 
 // --------- react-big-calendar localizer ----------
 const locales = {
@@ -28,14 +33,17 @@ const locales = {
 const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 1 }), // Monday
+  startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 1 }),
   getDay,
   locales,
 });
 
 // --------- event type ----------
-export type CalendarEvent = RBCEvent & {
+export type CalendarEvent = Omit<RBCEvent, "title" | "start" | "end"> & {
   id: number;
+  title: string;
+  start: Date;
+  end: Date;
   staffName: string;
   customerName: string;
   serviceName: string;
@@ -58,7 +66,7 @@ const DEMO_EVENTS: CalendarEvent[] = [
   {
     id: 1,
     title: "John Smith – Haircut",
-    start: makeDate(0, 11), // Mon 11:00
+    start: makeDate(0, 11),
     end: makeDate(0, 12),
     staffName: "John Smith",
     customerName: "Customer A",
@@ -69,7 +77,7 @@ const DEMO_EVENTS: CalendarEvent[] = [
   {
     id: 2,
     title: "John Smith – Haircut",
-    start: makeDate(2, 13), // Wed 13:00
+    start: makeDate(2, 13),
     end: makeDate(2, 14),
     staffName: "John Smith",
     customerName: "Customer B",
@@ -79,7 +87,7 @@ const DEMO_EVENTS: CalendarEvent[] = [
   {
     id: 3,
     title: "John Smith – Haircut",
-    start: makeDate(3, 16), // Thu 16:00
+    start: makeDate(3, 16),
     end: makeDate(3, 17),
     staffName: "John Smith",
     customerName: "Customer C",
@@ -90,18 +98,12 @@ const DEMO_EVENTS: CalendarEvent[] = [
 
 export default function CalendarPage() {
   const navigate = useNavigate();
-  const role: UserRole = CURRENT_ROLE;
+  const role: UserRole = getUserRole();
   const isOwner = role === "owner";
-  const isStaff = role === "staff";
   const isCustomer = role === "customer";
 
-  // selected calendar view (Day / Week)
   const [view, setView] = useState<"week" | "day">("week");
-
-  // owner can filter by staff; for now we just have "All Staff" + John Smith
   const [staffFilter, setStaffFilter] = useState<string>("ALL");
-
-  // selected event (right-hand panel)
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
 
   const filteredEvents = useMemo(() => {
@@ -111,7 +113,6 @@ export default function CalendarPage() {
     return DEMO_EVENTS.filter((e) => e.staffName === staffFilter);
   }, [staffFilter, isOwner]);
 
-  // What the heading above the grid says (minor differences)
   const title =
     role === "owner"
       ? "Appointments Business Calendar"
@@ -125,7 +126,6 @@ export default function CalendarPage() {
 
   return (
     <div className="calendar-page">
-      {/* Top toolbar row (dropdown + view switch + button) */}
       <div className="calendar-toolbar">
         <div className="calendar-toolbar-left">
           {isOwner && (
@@ -136,7 +136,6 @@ export default function CalendarPage() {
             >
               <option value="ALL">All Staff</option>
               <option value="John Smith">John Smith</option>
-              {/* later: map real staff list */}
             </select>
           )}
 
@@ -156,7 +155,9 @@ export default function CalendarPage() {
             >
               Day
             </button>
+
             <span className="calendar-view-divider">|</span>
+
             <button
               type="button"
               className={
@@ -170,61 +171,41 @@ export default function CalendarPage() {
             </button>
           </div>
 
-          <button type="button" className="calendar-btn-primary" onClick={onCreateAppointment}>
+          <button
+            type="button"
+            className="calendar-btn-primary"
+            onClick={onCreateAppointment}
+          >
             New Appointment
           </button>
         </div>
       </div>
 
-      {/* Grid: calendar on left, appointment panel on right */}
       <div className="calendar-main">
         <section className="calendar-card calendar-card--calendar">
-          {/* <Calendar
-            localizer={localizer}
-            events={filteredEvents}
-            view={view}
-            onView={setView}
-            startAccessor="start"
-            endAccessor="end"
-            selectable={false}
-            style={{ height: "100%", minHeight: 480 }}
-            step={60}
-            min={makeDate(0, 8)}
-            max={makeDate(0, 21)}
-            onSelectEvent={(event) =>
-              setSelected(event as CalendarEvent)
-            }
-          /> */}
-          <Calendar
+          <Calendar<CalendarEvent>
             localizer={localizer}
             events={filteredEvents}
             startAccessor="start"
             endAccessor="end"
-
-            // controlled view: only week/day
             view={view}
             defaultView="week"
             views={{ week: true, day: true }}
-            onView={(nextView) => {
+            onView={(nextView: View) => {
               if (nextView === "week" || nextView === "day") {
                 setView(nextView);
               }
             }}
-
-            // prevent week→day drilldown when clicking dates
             onDrillDown={() => {
-              // do nothing – keeps current view
+              // keep current view
             }}
-
             toolbar={false}
             step={30}
             timeslots={2}
             style={{ height: 600 }}
-            min={makeDate(0, 8)}   // 08:00
-            max={makeDate(0, 21)}  // 21:00
-
-            // select event → show details on the right
-            onSelectEvent={(event) => setSelected(event as CalendarEvent)}
+            min={makeDate(0, 8)}
+            max={makeDate(0, 21)}
+            onSelectEvent={(event) => setSelected(event)}
           />
         </section>
 
@@ -277,21 +258,13 @@ export default function CalendarPage() {
               </div>
 
               <div className="calendar-detail-actions">
-                <button
-                  type="button"
-                  className="calendar-btn-secondary"
-                >
+                <button type="button" className="calendar-btn-secondary">
                   Edit
                 </button>
 
-                {(!isCustomer || true) && (
-                  <button
-                    type="button"
-                    className="calendar-btn-ghost"
-                  >
-                    Cancel
-                  </button>
-                )}
+                <button type="button" className="calendar-btn-ghost">
+                  Cancel
+                </button>
               </div>
             </div>
           ) : (
