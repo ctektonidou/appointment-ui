@@ -33,6 +33,7 @@ const menuByRole: Record<UserRole, MenuItem[]> = {
     { to: "/appointments", label: "Appointments" },
     { to: "/services", label: "Services" },
     { to: "/availability", label: "Availability" },
+    { to: "/blocked-dates", label: "MyBlocked Days" },
     { to: "/create-appointment", label: "Create Appointment" },
     { to: "/staff", label: "Staff" },
   ],

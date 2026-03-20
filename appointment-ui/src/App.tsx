@@ -9,6 +9,7 @@ import CreateAppointmentPage from "./pages/Appointments/CreateAppointmentPage";
 import LandingPage from "./pages/Landing/LandingPage";
 import BusinessesPage from "./pages/Businesses/BusinessesPage";
 import AppLayout from "./pages/Layout/AppLayout";
+import BlockedDatesPage from "./pages/BlockedDates/BlockedDatesPage";
 
 function App() {
   const isLoggedIn = !!localStorage.getItem("authUser");
@@ -35,6 +36,7 @@ function App() {
             <Route path="staff" element={<StaffPage />} />
             <Route path="businesses" element={<BusinessesPage />} />
             <Route path="create-appointment" element={<CreateAppointmentPage />} />
+            <Route path="blocked-dates" element={<BlockedDatesPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
