@@ -1,0 +1,472 @@
+.blocked-dates-page {
+  padding: 32px;
+  background: #f7f8fc;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.blocked-dates-title,
+.availability-title {
+  margin: 0 0 20px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.availability-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  border: 1px solid #eceff5;
+}
+
+.blocked-top {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.blocked-month-switch {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.month-nav-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #d9dfeb;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #344054;
+  font-size: 22px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.month-nav-btn:hover {
+  background: #f3f6fb;
+  border-color: #c8d2e5;
+}
+
+.blocked-month-title {
+  min-width: 180px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.blocked-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.blocked-calendar {
+  background: #fafbff;
+  border: 1px solid #e6ebf5;
+  border-radius: 18px;
+  padding: 20px;
+}
+
+.blocked-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.blocked-weekday {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #667085;
+  padding: 8px 0;
+}
+
+.blocked-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.blocked-day-cell {
+  height: 42px;
+  border: 1px solid #e1e7f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.blocked-day-cell:hover {
+  background: #f3f7ff;
+  border-color: #c8d6f0;
+}
+
+.blocked-day-cell--empty {
+  background: transparent;
+  border: none;
+  cursor: default;
+}
+
+.blocked-day-cell--selected {
+  background: #1d4ed8;
+  color: #ffffff;
+  border-color: #1d4ed8;
+}
+
+.blocked-day-cell--has {
+  box-shadow: inset 0 0 0 2px #f59e0b;
+}
+
+.blocked-day-cell--selected.blocked-day-cell--has {
+  box-shadow: inset 0 0 0 2px #fbbf24;
+}
+
+.blocked-table-wrapper {
+  background: #fafbff;
+  border: 1px solid #e6ebf5;
+  border-radius: 18px;
+  padding: 20px;
+  min-height: 420px;
+}
+
+.blocked-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.blocked-section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.availability-btn-link {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.availability-btn-link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.blocked-table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+}
+
+.blocked-table thead th {
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+  color: #667085;
+  padding: 14px 12px;
+  border-bottom: 1px solid #e7ecf4;
+  background: #f8faff;
+}
+
+.blocked-table tbody td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #eef2f7;
+  font-size: 14px;
+  color: #1f2937;
+  vertical-align: middle;
+}
+
+.blocked-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.blocked-empty-cell {
+  text-align: center;
+  color: #98a2b3;
+  padding: 36px 12px !important;
+}
+
+.blocked-actions-cell {
+  width: 56px;
+  text-align: right;
+}
+
+.blocked-delete-icon-btn {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: #fff1f2;
+  color: #dc2626;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: all 0.18s ease;
+}
+
+.blocked-delete-icon-btn:hover {
+  background: #ffe4e6;
+}
+
+.blocked-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.blocked-modal {
+  width: 100%;
+  max-width: 520px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+  overflow: hidden;
+}
+
+.blocked-modal--delete {
+  max-width: 460px;
+}
+
+.blocked-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 22px;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.blocked-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.blocked-modal-close {
+  border: none;
+  background: transparent;
+  font-size: 26px;
+  line-height: 1;
+  color: #667085;
+  cursor: pointer;
+  padding: 0;
+}
+
+.blocked-modal-body {
+  padding: 22px;
+}
+
+.blocked-modal-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.blocked-modal-row:last-child {
+  margin-bottom: 0;
+}
+
+.blocked-modal-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.blocked-modal-field--full {
+  flex: 1 1 100%;
+}
+
+.blocked-modal-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #475467;
+  margin-bottom: 8px;
+}
+
+.blocked-modal-input {
+  width: 100%;
+  height: 44px;
+  border: 1px solid #d7deea;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: #1f2937;
+  background: #ffffff;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.blocked-modal-input:focus {
+  border-color: #94b5ff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.blocked-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 22px 22px;
+  border-top: 1px solid #edf1f7;
+}
+
+.blocked-modal-actions--center {
+  justify-content: center;
+}
+
+.blocked-modal-primary-btn {
+  min-width: 100px;
+  height: 42px;
+  border: none;
+  border-radius: 12px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.blocked-modal-primary-btn:hover {
+  background: #1d4ed8;
+}
+
+.blocked-modal-primary-btn:disabled {
+  background: #b7c6ea;
+  cursor: not-allowed;
+}
+
+.blocked-modal-secondary-btn {
+  min-width: 100px;
+  height: 42px;
+  border: 1px solid #d7deea;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.blocked-modal-secondary-btn:hover {
+  background: #f8fafc;
+}
+
+.blocked-delete-content {
+  padding: 28px 24px 12px;
+  text-align: center;
+}
+
+.blocked-delete-icon {
+  font-size: 36px;
+  margin-bottom: 14px;
+}
+
+.blocked-delete-text {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #344054;
+}
+
+.availability-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.availability-save {
+  height: 46px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 14px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.availability-save:hover {
+  background: #1f2937;
+}
+
+@media (max-width: 980px) {
+  .blocked-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .blocked-calendar,
+  .blocked-table-wrapper {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .blocked-dates-page {
+    padding: 18px;
+  }
+
+  .availability-card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .blocked-month-title {
+    min-width: 140px;
+    font-size: 16px;
+  }
+
+  .blocked-day-cell {
+    height: 38px;
+    font-size: 13px;
+  }
+
+  .blocked-modal-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .blocked-section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .blocked-modal-actions {
+    flex-direction: column;
+  }
+
+  .blocked-modal-primary-btn,
+  .blocked-modal-secondary-btn {
+    width: 100%;
+  }
+
+  .availability-footer {
+    justify-content: stretch;
+  }
+
+  .availability-save {
+    width: 100%;
+  }
+}

@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
-import type { Event as RBCEvent } from "react-big-calendar";
+import type { View, Event as RBCEvent } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay, setHours, setMinutes } from "date-fns";
 import { enUS } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 
 import EditAppointmentModal, {
   type Appointment,
@@ -33,8 +34,12 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
-export type CalendarEvent = RBCEvent & {
+// --------- event type ----------
+export type CalendarEvent = Omit<RBCEvent, "title" | "start" | "end"> & {
   id: number;
+  title: string;
+  start: Date;
+  end: Date;
   staffName: string;
   customerName: string;
   serviceName: string;
@@ -118,6 +123,7 @@ const INITIAL_EVENTS: CalendarEvent[] = [
 const STAFF_OPTIONS = ["John Smith", "Anna Peter", "Lena Nock"];
 
 export default function CalendarPage() {
+  const navigate = useNavigate();
   const role: UserRole = getStoredUserRole();
   const isOwner = role === "owner";
   const isCustomer = role === "customer";
@@ -223,6 +229,10 @@ export default function CalendarPage() {
 
     closeCancelModal();
   }
+  
+  function onCreateAppointment() {
+    navigate("/create-appointment");
+  }
 
   return (
     <div className="calendar-page">
@@ -259,7 +269,9 @@ export default function CalendarPage() {
             >
               Day
             </button>
+
             <span className="calendar-view-divider">|</span>
+
             <button
               type="button"
               className={
@@ -273,7 +285,11 @@ export default function CalendarPage() {
             </button>
           </div>
 
-          <button type="button" className="calendar-btn-primary">
+          <button
+            type="button"
+            className="calendar-btn-primary"
+            onClick={onCreateAppointment}
+          >
             New Appointment
           </button>
         </div>
@@ -289,7 +305,7 @@ export default function CalendarPage() {
             view={view}
             defaultView="week"
             views={{ week: true, day: true }}
-            onView={(nextView) => {
+            onView={(nextView: View) => {
               if (nextView === "week" || nextView === "day") {
                 setView(nextView);
               }

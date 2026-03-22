@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import "./BusinessesPage.css";
 
 type UserRole = "owner" | "staff" | "customer";
-const CURRENT_ROLE: UserRole = "customer"; // TODO: replace with auth/context
 
 export type BusinessCard = {
   id: number;
@@ -68,8 +67,17 @@ const DEMO_BUSINESSES: BusinessCard[] = [
   },
 ];
 
+function getStoredUserRole(): UserRole {
+  const storedRole = localStorage.getItem("userRole");
+
+  if (storedRole === "business" || storedRole === "owner") return "owner";
+  if (storedRole === "staff") return "staff";
+  return "customer";
+}
+
 export default function BusinessesPage() {
-  const isCustomer = CURRENT_ROLE === "customer";
+  const role = getStoredUserRole();
+  const isCustomer = role === "customer";
   const navigate = useNavigate();
 
   const [industry, setIndustry] = useState("All industries");

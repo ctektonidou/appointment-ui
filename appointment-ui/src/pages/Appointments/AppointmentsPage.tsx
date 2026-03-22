@@ -2,23 +2,13 @@ import { useMemo, useState } from "react";
 import { format, isAfter, isBefore, parseISO, startOfDay, endOfDay } from "date-fns";
 import "./AppointmentsPage.css";
 
-// ----------------------------------------------------
-// Role handling (same idea as Dashboard / Calendar)
-// Later this will come from real auth/context.
-// ----------------------------------------------------
 type UserRole = "owner" | "staff" | "customer";
 
-// TEMP: change this to see the 3 layouts
-const CURRENT_ROLE: UserRole = "owner";
-
-// ----------------------------------------------------
-// Types & demo data
-// ----------------------------------------------------
 type Status = "ACTIVE" | "CANCELLED" | "NO_SHOW";
 
 type Appointment = {
   id: number;
-  start: string;        // ISO string for simplicity
+  start: string;
   durationMinutes: number;
   customerName: string;
   businessName: string;
@@ -61,19 +51,27 @@ const DEMO_APPOINTMENTS: Appointment[] = [
 ];
 
 type Filters = {
-  from: string;    // "yyyy-MM-dd"
+  from: string;
   to: string;
-  status: string;  // "ALL" | Status
-  staff: string;   // "ALL" | name
-  service: string; // "ALL" | name
-  business: string; // "ALL" | name
+  status: string;
+  staff: string;
+  service: string;
+  business: string;
   search: string;
 };
 
 const PAGE_SIZE = 10;
 
+function getStoredUserRole(): UserRole {
+  const storedRole = localStorage.getItem("userRole");
+
+  if (storedRole === "business" || storedRole === "owner") return "owner";
+  if (storedRole === "staff") return "staff";
+  return "customer";
+}
+
 export default function AppointmentsPage() {
-  const role: UserRole = CURRENT_ROLE;
+  const role: UserRole = getStoredUserRole();
 
   const isOwner = role === "owner";
   const isStaff = role === "staff";
@@ -96,7 +94,7 @@ export default function AppointmentsPage() {
       ...prev,
       [key]: value,
     }));
-    setPage(1); // reset page on filter change
+    setPage(1);
   }
 
   const filtered = useMemo(() => {
@@ -121,9 +119,7 @@ export default function AppointmentsPage() {
         return false;
       }
 
-      // staff sees only his own appointments
       if (isStaff && appt.staffName !== "Peter") {
-        // later: replace with logged in staff name/id
         return false;
       }
 
@@ -145,6 +141,7 @@ export default function AppointmentsPage() {
         ]
           .join(" ")
           .toLowerCase();
+
         if (!haystack.includes(term)) return false;
       }
 
@@ -155,13 +152,10 @@ export default function AppointmentsPage() {
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const title = "Appointments";
-
   return (
     <div className="appointments-page">
-      <h1 className="appointments-title">{title}</h1>
+      <h1 className="appointments-title">Appointments</h1>
 
-      {/* ---------------- Filter form ---------------- */}
       <div className="appointments-filters">
         <div className="appointments-filters-row">
           <div className="appointments-field">
@@ -184,7 +178,6 @@ export default function AppointmentsPage() {
             />
           </div>
 
-          {/* Owner + staff: Status dropdown */}
           <div className="appointments-field">
             <label className="appointments-label">Status</label>
             <select
@@ -199,7 +192,6 @@ export default function AppointmentsPage() {
             </select>
           </div>
 
-          {/* Right-most filter depends on role */}
           {isOwner && (
             <div className="appointments-field">
               <label className="appointments-label">Staff</label>
@@ -244,7 +236,6 @@ export default function AppointmentsPage() {
         </div>
 
         <div className="appointments-filters-row">
-          {/* Second row: owner sees Service, customer sees Business */}
           {isOwner && (
             <div className="appointments-field">
               <label className="appointments-label">Service</label>
@@ -259,9 +250,7 @@ export default function AppointmentsPage() {
             </div>
           )}
 
-          {isStaff && (
-            <div className="appointments-field" />
-          )}
+          {isStaff && <div className="appointments-field" />}
 
           {isCustomer && (
             <div className="appointments-field">
@@ -292,7 +281,7 @@ export default function AppointmentsPage() {
             <button
               type="button"
               className="appointments-btn-primary"
-              onClick={() => setPage(1)} // in real app you’d call API
+              onClick={() => setPage(1)}
             >
               Search
             </button>
@@ -300,21 +289,16 @@ export default function AppointmentsPage() {
         </div>
       </div>
 
-      {/* ---------------- Table ---------------- */}
       <div className="appointments-table-wrapper">
         <table className="appointments-table">
           <thead>
             <tr>
               <th>Date</th>
               <th>Time</th>
-
               {isCustomer && <th>Business</th>}
               {!isCustomer && <th>Customer</th>}
-
               <th>Service</th>
-
               {(isOwner || isCustomer) && <th>Staff</th>}
-
               <th>Status</th>
             </tr>
           </thead>
@@ -335,14 +319,10 @@ export default function AppointmentsPage() {
                   <tr key={appt.id}>
                     <td>{dateStr}</td>
                     <td>{timeStr}</td>
-
                     {isCustomer && <td>{appt.businessName}</td>}
                     {!isCustomer && <td>{appt.customerName}</td>}
-
                     <td>{appt.serviceName}</td>
-
                     {(isOwner || isCustomer) && <td>{appt.staffName}</td>}
-
                     <td>{appt.status}</td>
                   </tr>
                 );
@@ -352,7 +332,6 @@ export default function AppointmentsPage() {
         </table>
       </div>
 
-      {/* ---------------- Pagination ---------------- */}
       <div className="appointments-pagination">
         <button
           type="button"
