@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { login, signup } from "../../api/authApi";
+import {
+  login,
+  signupBusiness,
+  signupCustomer,
+  signupStaff,
+} from "../../api/authApi";
 import "./AuthModal.css";
 import { useNavigate } from "react-router-dom";
 
@@ -47,11 +52,15 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
   const [staffSignupLastName, setStaffSignupLastName] = useState("");
   const [staffSignupEmail, setStaffSignupEmail] = useState("");
   const [staffSignupBusinessCode, setStaffSignupBusinessCode] = useState("");
+  const [staffSignupPhone, setStaffSignupPhone] = useState("");
+  const [staffSignupColorHex, setStaffSignupColorHex] = useState("#12b3a8");
   const [staffSignupPassword, setStaffSignupPassword] = useState("");
 
   const [businessLoginEmail, setBusinessLoginEmail] = useState("");
   const [businessLoginPassword, setBusinessLoginPassword] = useState("");
 
+  const [businessOwnerFirstName, setBusinessOwnerFirstName] = useState("");
+  const [businessOwnerLastName, setBusinessOwnerLastName] = useState("");
   const [businessSignupName, setBusinessSignupName] = useState("");
   const [businessSignupCategory, setBusinessSignupCategory] = useState("");
   const [businessSignupEmail, setBusinessSignupEmail] = useState("");
@@ -59,6 +68,7 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
   const [businessSignupPassword, setBusinessSignupPassword] = useState("");
   const [businessSignupAddress, setBusinessSignupAddress] = useState("");
   const [businessSignupTimezone, setBusinessSignupTimezone] = useState("");
+  const [businessSignupLogoUrl, setBusinessSignupLogoUrl] = useState("");
 
   const [showCustomerLoginPassword, setShowCustomerLoginPassword] = useState(false);
   const [showCustomerSignupPassword, setShowCustomerSignupPassword] = useState(false);
@@ -109,12 +119,11 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
     setIsSubmitting(true);
 
     try {
-      const response = await signup({
+      const response = await signupCustomer({
         email: customerSignupEmail,
         password: customerSignupPassword,
         firstName: customerSignupFirstName,
         lastName: customerSignupLastName,
-        role: "customer",
       });
 
       saveAuthUser({
@@ -172,15 +181,15 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
     setIsSubmitting(true);
 
     try {
-      const response = await signup({
+      const response = await signupStaff({
         email: staffSignupEmail,
         password: staffSignupPassword,
         firstName: staffSignupFirstName,
         lastName: staffSignupLastName,
-        role: "staff",
+        businessCode: staffSignupBusinessCode,
+        phone: staffSignupPhone,
+        colorHex: staffSignupColorHex,
       });
-
-      console.log("Business code for later backend use:", staffSignupBusinessCode);
 
       saveAuthUser({
         id: response.id,
@@ -237,19 +246,18 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
     setIsSubmitting(true);
 
     try {
-      const response = await signup({
-        email: businessSignupEmail,
+      const response = await signupBusiness({
+        ownerFirstName: businessOwnerFirstName,
+        ownerLastName: businessOwnerLastName,
+        ownerEmail: businessSignupEmail,
         password: businessSignupPassword,
-        firstName: businessSignupName,
-        lastName: "",
-        role: "business",
-      });
-
-      console.log("Business extra fields for later backend use:", {
-        category: businessSignupCategory,
+        businessName: businessSignupName,
+        industryId: businessSignupCategory,
         phone: businessSignupPhone,
-        address: businessSignupAddress,
+        businessEmail: businessSignupEmail,
         timezone: businessSignupTimezone,
+        address: businessSignupAddress,
+        logoUrl: businessSignupLogoUrl,
       });
 
       saveAuthUser({
@@ -486,6 +494,26 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
                   />
                 </div>
 
+                <div className="auth-modal-field">
+                  <label className="auth-modal-label">phone</label>
+                  <input
+                    className="auth-modal-input"
+                    type="text"
+                    value={staffSignupPhone}
+                    onChange={(e) => setStaffSignupPhone(e.target.value)}
+                  />
+                </div>
+
+                <div className="auth-modal-field">
+                  <label className="auth-modal-label">calendar color</label>
+                  <input
+                    className="auth-modal-input"
+                    type="color"
+                    value={staffSignupColorHex}
+                    onChange={(e) => setStaffSignupColorHex(e.target.value)}
+                  />
+                </div>
+
                 <div className="auth-modal-field auth-modal-field--span-2">
                   <label className="auth-modal-label">password</label>
                   <div className="auth-modal-password-wrap">
@@ -561,6 +589,26 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
 
               <div className="auth-modal-form-grid auth-modal-form-grid--two">
                 <div className="auth-modal-field">
+                  <label className="auth-modal-label">owner first name</label>
+                  <input
+                    className="auth-modal-input"
+                    type="text"
+                    value={businessOwnerFirstName}
+                    onChange={(e) => setBusinessOwnerFirstName(e.target.value)}
+                  />
+                </div>
+
+                <div className="auth-modal-field">
+                  <label className="auth-modal-label">owner last name</label>
+                  <input
+                    className="auth-modal-input"
+                    type="text"
+                    value={businessOwnerLastName}
+                    onChange={(e) => setBusinessOwnerLastName(e.target.value)}
+                  />
+                </div>
+
+                <div className="auth-modal-field">
                   <label className="auth-modal-label">business name</label>
                   <input
                     className="auth-modal-input"
@@ -571,24 +619,24 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
                 </div>
 
                 <div className="auth-modal-field">
-                  <label className="auth-modal-label">business category</label>
+                  <label className="auth-modal-label">industry</label>
                   <select
                     className="auth-modal-input"
                     value={businessSignupCategory}
                     onChange={(e) => setBusinessSignupCategory(e.target.value)}
                   >
-                    <option value="">select business categories</option>
-                    <option value="hair_salon">Hair Salon</option>
-                    <option value="barber_shop">Barber Shop</option>
-                    <option value="spa">Spa</option>
-                    <option value="nails">Nails</option>
-                    <option value="massage">Massage</option>
-                    <option value="physiotherapy">Physiotherapy</option>
+                    <option value="">select industry</option>
+                    <option value="1">Hair Salon</option>
+                    <option value="2">Barber Shop</option>
+                    <option value="3">Spa</option>
+                    <option value="4">Nails</option>
+                    <option value="5">Massage</option>
+                    <option value="6">Physiotherapy</option>
                   </select>
                 </div>
 
                 <div className="auth-modal-field">
-                  <label className="auth-modal-label">email</label>
+                  <label className="auth-modal-label">owner/business email</label>
                   <input
                     className="auth-modal-input"
                     type="email"
@@ -645,15 +693,20 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
                     onChange={(e) => setBusinessSignupTimezone(e.target.value)}
                   >
                     <option value="">select timezone</option>
-                    <option value="europe_athens">Europe/Athens</option>
-                    <option value="europe_london">Europe/London</option>
-                    <option value="europe_berlin">Europe/Berlin</option>
+                    <option value="Europe/Athens">Europe/Athens</option>
+                    <option value="Europe/London">Europe/London</option>
+                    <option value="Europe/Berlin">Europe/Berlin</option>
                   </select>
                 </div>
 
                 <div className="auth-modal-field">
-                  <label className="auth-modal-label">logo</label>
-                  <div className="auth-modal-logo-upload-placeholder">🖼️</div>
+                  <label className="auth-modal-label">logo url</label>
+                  <input
+                    className="auth-modal-input"
+                    type="text"
+                    value={businessSignupLogoUrl}
+                    onChange={(e) => setBusinessSignupLogoUrl(e.target.value)}
+                  />
                 </div>
               </div>
 

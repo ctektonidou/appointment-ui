@@ -3,12 +3,35 @@ export type LoginRequest = {
   password: string;
 };
 
-export type SignupRequest = {
+export type CustomerSignupRequest = {
   email: string;
   password: string;
   firstName: string;
   lastName: string;
-  role: "customer" | "staff" | "business";
+};
+
+export type StaffSignupRequest = {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  businessCode: string;
+  phone?: string;
+  colorHex?: string;
+};
+
+export type BusinessSignupRequest = {
+  ownerFirstName: string;
+  ownerLastName: string;
+  ownerEmail: string;
+  password: string;
+  businessName: string;
+  industryId: string;
+  phone: string;
+  businessEmail: string;
+  timezone: string;
+  address: string;
+  logoUrl?: string;
 };
 
 export type AuthResponse = {
@@ -45,8 +68,38 @@ export async function login(request: LoginRequest): Promise<AuthResponse> {
   return handleResponse<AuthResponse>(response);
 }
 
-export async function signup(request: SignupRequest): Promise<AuthResponse> {
-  const response = await fetch(`${BASE_URL}/signup`, {
+export async function signupCustomer(
+  request: CustomerSignupRequest
+): Promise<AuthResponse> {
+  const response = await fetch(`${BASE_URL}/signup/customer`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  return handleResponse<AuthResponse>(response);
+}
+
+export async function signupStaff(
+  request: StaffSignupRequest
+): Promise<AuthResponse> {
+  const response = await fetch(`${BASE_URL}/signup/staff`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  return handleResponse<AuthResponse>(response);
+}
+
+export async function signupBusiness(
+  request: BusinessSignupRequest
+): Promise<AuthResponse> {
+  const response = await fetch(`${BASE_URL}/signup/business`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
