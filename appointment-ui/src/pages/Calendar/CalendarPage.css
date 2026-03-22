@@ -218,3 +218,187 @@
   border-radius: 6px;
   border: none;
 }
+
+.calendar-btn-edit {
+  border: none;
+  background: #12b3a8;
+  color: white;
+  border-radius: 20px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.calendar-btn-edit:hover {
+  opacity: 0.92;
+}
+
+.calendar-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.calendar-modal {
+  width: 100%;
+  max-width: 720px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+}
+
+.calendar-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.calendar-modal-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.calendar-modal-close {
+  border: none;
+  background: transparent;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.calendar-modal-body {
+  padding: 24px;
+}
+
+.calendar-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 20px;
+}
+
+.calendar-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-field--full {
+  grid-column: 1 / -1;
+}
+
+.calendar-field--time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.calendar-field-label {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #475467;
+}
+
+.calendar-field-input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #d0d5dd;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #101828;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.calendar-field-input:focus {
+  outline: none;
+  border-color: #12b3a8;
+  box-shadow: 0 0 0 3px rgba(18, 179, 168, 0.12);
+}
+
+.calendar-field-textarea {
+  min-height: 110px;
+  resize: vertical;
+  padding-top: 12px;
+}
+
+.calendar-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+@media (max-width: 768px) {
+  .calendar-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-field--time-row {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-modal-actions {
+    flex-direction: column;
+  }
+
+  .calendar-modal-actions .calendar-btn-primary,
+  .calendar-modal-actions .calendar-btn-ghost {
+    width: 100%;
+  }
+}
+
+.calendar-modal--delete {
+  max-width: 460px;
+}
+
+.calendar-delete-content {
+  padding: 28px 24px 12px;
+  text-align: center;
+}
+
+.calendar-delete-icon {
+  font-size: 36px;
+  margin-bottom: 14px;
+}
+
+.calendar-delete-text {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #344054;
+}
+
+.calendar-modal-actions--center {
+  justify-content: center;
+}
+
+.calendar-btn-danger {
+  min-width: 140px;
+  height: 42px;
+  border: none;
+  border-radius: 12px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.calendar-btn-danger:hover {
+  background: #b91c1c;
+}

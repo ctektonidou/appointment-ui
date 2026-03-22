@@ -1,25 +1,26 @@
-// src/pages/Calendar/CalendarPage.tsx
 import { useMemo, useState } from "react";
-import {
-  Calendar,
-  dateFnsLocalizer,
-} from "react-big-calendar";
-import type {
-  View,
-  Event as RBCEvent,
-} from "react-big-calendar";
-import { format, parse, startOfWeek, getDay } from "date-fns";
+import { Calendar, dateFnsLocalizer } from "react-big-calendar";
+import type { Event as RBCEvent } from "react-big-calendar";
+import { format, parse, startOfWeek, getDay, setHours, setMinutes } from "date-fns";
 import { enUS } from "date-fns/locale";
 
-import "./CalendarPage.css";
+import EditAppointmentModal, {
+  type Appointment,
+} from "../../pages/EditAppointmentModal/EditAppointmentModal";
 
-// --------- role handling (same style as Dashboard) ----------
+import "./CalendarPage.css";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+
 type UserRole = "owner" | "staff" | "customer";
 
-// TODO: later get from auth / context
-const CURRENT_ROLE: UserRole = "owner";
+function getStoredUserRole(): UserRole {
+  const storedRole = localStorage.getItem("userRole");
 
-// --------- react-big-calendar localizer ----------
+  if (storedRole === "business" || storedRole === "owner") return "owner";
+  if (storedRole === "staff") return "staff";
+  return "customer";
+}
+
 const locales = {
   "en-US": enUS,
 };
@@ -27,22 +28,20 @@ const locales = {
 const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 1 }), // Monday
+  startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 1 }),
   getDay,
   locales,
 });
 
-// --------- event type ----------
 export type CalendarEvent = RBCEvent & {
   id: number;
   staffName: string;
   customerName: string;
   serviceName: string;
-  status: "ACTIVE" | "CANCELLED" | "NO_SHOW";
+  status: "ACTIVE" | "CANCELLED" | "NO_SHOW" | "COMPLETED";
   notes?: string;
 };
 
-// Little helper to create dates on a given day/time (same week)
 function makeDate(dayIndex: number, hour: number, minute = 0): Date {
   const now = new Date();
   const monday = startOfWeek(now, { weekStartsOn: 1 });
@@ -52,12 +51,39 @@ function makeDate(dayIndex: number, hour: number, minute = 0): Date {
   return d;
 }
 
-// Demo data (later we’ll fetch from API)
-const DEMO_EVENTS: CalendarEvent[] = [
+function combineDateAndTime(dateValue: string, timeValue: string): Date {
+  const base = new Date(dateValue);
+  const [hours, minutes] = timeValue.split(":").map(Number);
+  return setMinutes(setHours(base, hours), minutes);
+}
+
+function toDateInputValue(date: Date): string {
+  return format(date, "yyyy-MM-dd");
+}
+
+function toTimeInputValue(date: Date): string {
+  return format(date, "HH:mm");
+}
+
+function mapCalendarEventToAppointment(event: CalendarEvent): Appointment {
+  return {
+    id: event.id,
+    client: event.customerName,
+    staff: event.staffName,
+    service: event.serviceName,
+    date: toDateInputValue(event.start as Date),
+    time: toTimeInputValue(event.start as Date),
+    endTime: toTimeInputValue(event.end as Date),
+    status: event.status,
+    notes: event.notes || "",
+  };
+}
+
+const INITIAL_EVENTS: CalendarEvent[] = [
   {
     id: 1,
     title: "John Smith – Haircut",
-    start: makeDate(0, 11), // Mon 11:00
+    start: makeDate(0, 11),
     end: makeDate(0, 12),
     staffName: "John Smith",
     customerName: "Customer A",
@@ -68,48 +94,52 @@ const DEMO_EVENTS: CalendarEvent[] = [
   {
     id: 2,
     title: "John Smith – Haircut",
-    start: makeDate(2, 13), // Wed 13:00
+    start: makeDate(2, 13),
     end: makeDate(2, 14),
     staffName: "John Smith",
     customerName: "Customer B",
     serviceName: "Haircut",
     status: "ACTIVE",
+    notes: "",
   },
   {
     id: 3,
     title: "John Smith – Haircut",
-    start: makeDate(3, 16), // Thu 16:00
+    start: makeDate(3, 16),
     end: makeDate(3, 17),
     staffName: "John Smith",
     customerName: "Customer C",
     serviceName: "Haircut",
     status: "ACTIVE",
+    notes: "No notes",
   },
 ];
 
+const STAFF_OPTIONS = ["John Smith", "Anna Peter", "Lena Nock"];
+
 export default function CalendarPage() {
-  const role: UserRole = CURRENT_ROLE;
+  const role: UserRole = getStoredUserRole();
   const isOwner = role === "owner";
-  const isStaff = role === "staff";
   const isCustomer = role === "customer";
 
-  // selected calendar view (Day / Week)
+  const [events, setEvents] = useState<CalendarEvent[]>(INITIAL_EVENTS);
   const [view, setView] = useState<"week" | "day">("week");
-
-  // owner can filter by staff; for now we just have "All Staff" + John Smith
   const [staffFilter, setStaffFilter] = useState<string>("ALL");
-
-  // selected event (right-hand panel)
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [appointmentToCancel, setAppointmentToCancel] = useState<CalendarEvent | null>(null);
 
   const filteredEvents = useMemo(() => {
     if (!isOwner || staffFilter === "ALL") {
-      return DEMO_EVENTS;
+      return events;
     }
-    return DEMO_EVENTS.filter((e) => e.staffName === staffFilter);
-  }, [staffFilter, isOwner]);
+    return events.filter((e) => e.staffName === staffFilter);
+  }, [events, staffFilter, isOwner]);
 
-  // What the heading above the grid says (minor differences)
   const title =
     role === "owner"
       ? "Appointments Business Calendar"
@@ -117,12 +147,85 @@ export default function CalendarPage() {
         ? "Appointments Calendar"
         : "My Appointments Calendar";
 
-  const newAppointmentLabel =
-    role === "customer" ? "New Appointment" : "New Appointment";
+  function openEditModal() {
+    if (!selected) return;
+
+    setEditingAppointment(mapCalendarEventToAppointment(selected));
+    setIsEditModalOpen(true);
+  }
+
+  function closeEditModal() {
+    setIsEditModalOpen(false);
+    setEditingAppointment(null);
+  }
+
+  function handleSaveAppointment(updated: Appointment) {
+    const newStart = combineDateAndTime(updated.date, updated.time);
+    const newEnd = combineDateAndTime(updated.date, updated.endTime);
+
+    if (newEnd <= newStart) {
+      alert("End time must be after start time.");
+      return;
+    }
+
+    setEvents((prev) =>
+      prev.map((event) => {
+        if (event.id !== updated.id) return event;
+
+        const updatedEvent: CalendarEvent = {
+          ...event,
+          customerName: updated.client,
+          staffName: updated.staff,
+          serviceName: updated.service,
+          status: updated.status,
+          notes: updated.notes.trim(),
+          start: newStart,
+          end: newEnd,
+          title: `${updated.staff} – ${updated.service}`,
+        };
+
+        setSelected(updatedEvent);
+        return updatedEvent;
+      })
+    );
+
+    closeEditModal();
+  }
+
+  function openCancelModal() {
+    if (!selected) return;
+    setAppointmentToCancel(selected);
+    setIsCancelModalOpen(true);
+  }
+
+  function closeCancelModal() {
+    setAppointmentToCancel(null);
+    setIsCancelModalOpen(false);
+  }
+
+  function confirmCancelAppointment() {
+    if (!appointmentToCancel) return;
+
+    const updatedEvent: CalendarEvent = {
+      ...appointmentToCancel,
+      status: "CANCELLED",
+    };
+
+    setEvents((prev) =>
+      prev.map((event) =>
+        event.id === appointmentToCancel.id ? updatedEvent : event
+      )
+    );
+
+    if (selected?.id === appointmentToCancel.id) {
+      setSelected(updatedEvent);
+    }
+
+    closeCancelModal();
+  }
 
   return (
     <div className="calendar-page">
-      {/* Top toolbar row (dropdown + view switch + button) */}
       <div className="calendar-toolbar">
         <div className="calendar-toolbar-left">
           {isOwner && (
@@ -132,8 +235,11 @@ export default function CalendarPage() {
               onChange={(e) => setStaffFilter(e.target.value)}
             >
               <option value="ALL">All Staff</option>
-              <option value="John Smith">John Smith</option>
-              {/* later: map real staff list */}
+              {STAFF_OPTIONS.map((staff) => (
+                <option key={staff} value={staff}>
+                  {staff}
+                </option>
+              ))}
             </select>
           )}
 
@@ -168,37 +274,18 @@ export default function CalendarPage() {
           </div>
 
           <button type="button" className="calendar-btn-primary">
-            {newAppointmentLabel}
+            New Appointment
           </button>
         </div>
       </div>
 
-      {/* Grid: calendar on left, appointment panel on right */}
       <div className="calendar-main">
         <section className="calendar-card calendar-card--calendar">
-          {/* <Calendar
-            localizer={localizer}
-            events={filteredEvents}
-            view={view}
-            onView={setView}
-            startAccessor="start"
-            endAccessor="end"
-            selectable={false}
-            style={{ height: "100%", minHeight: 480 }}
-            step={60}
-            min={makeDate(0, 8)}
-            max={makeDate(0, 21)}
-            onSelectEvent={(event) =>
-              setSelected(event as CalendarEvent)
-            }
-          /> */}
           <Calendar
             localizer={localizer}
             events={filteredEvents}
             startAccessor="start"
             endAccessor="end"
-
-            // controlled view: only week/day
             view={view}
             defaultView="week"
             views={{ week: true, day: true }}
@@ -207,20 +294,13 @@ export default function CalendarPage() {
                 setView(nextView);
               }
             }}
-
-            // prevent week→day drilldown when clicking dates
-            onDrillDown={() => {
-              // do nothing – keeps current view
-            }}
-
+            onDrillDown={() => { }}
             toolbar={false}
             step={30}
             timeslots={2}
             style={{ height: 600 }}
-            min={makeDate(0, 8)}   // 08:00
-            max={makeDate(0, 21)}  // 21:00
-
-            // select event → show details on the right
+            min={makeDate(0, 8)}
+            max={makeDate(0, 21)}
             onSelectEvent={(event) => setSelected(event as CalendarEvent)}
           />
         </section>
@@ -232,38 +312,30 @@ export default function CalendarPage() {
             <div className="calendar-details-body">
               <div className="calendar-detail-row">
                 <span className="calendar-detail-label">Client</span>
-                <span className="calendar-detail-value">
-                  {selected.customerName}
-                </span>
+                <span className="calendar-detail-value">{selected.customerName}</span>
               </div>
 
               <div className="calendar-detail-row">
                 <span className="calendar-detail-label">Staff</span>
-                <span className="calendar-detail-value">
-                  {selected.staffName}
-                </span>
+                <span className="calendar-detail-value">{selected.staffName}</span>
               </div>
 
               <div className="calendar-detail-row">
                 <span className="calendar-detail-label">Service</span>
-                <span className="calendar-detail-value">
-                  {selected.serviceName}
-                </span>
+                <span className="calendar-detail-value">{selected.serviceName}</span>
               </div>
 
               <div className="calendar-detail-row">
                 <span className="calendar-detail-label">Time</span>
                 <span className="calendar-detail-value">
-                  {format(selected.start, "EEE d MMM, HH:mm")} -{" "}
-                  {format(selected.end, "HH:mm")}
+                  {format(selected.start as Date, "EEE d MMM, HH:mm")} -{" "}
+                  {format(selected.end as Date, "HH:mm")}
                 </span>
               </div>
 
               <div className="calendar-detail-row">
                 <span className="calendar-detail-label">Status</span>
-                <span className="calendar-detail-value">
-                  {selected.status}
-                </span>
+                <span className="calendar-detail-value">{selected.status}</span>
               </div>
 
               <div className="calendar-detail-notes">
@@ -276,19 +348,19 @@ export default function CalendarPage() {
               <div className="calendar-detail-actions">
                 <button
                   type="button"
-                  className="calendar-btn-secondary"
+                  className="calendar-btn-edit"
+                  onClick={openEditModal}
                 >
                   Edit
                 </button>
 
-                {(!isCustomer || true) && (
-                  <button
-                    type="button"
-                    className="calendar-btn-ghost"
-                  >
-                    Cancel
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="calendar-btn-ghost"
+                  onClick={openCancelModal}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           ) : (
@@ -298,6 +370,62 @@ export default function CalendarPage() {
           )}
         </section>
       </div>
+
+      {isEditModalOpen && editingAppointment && (
+        <EditAppointmentModal
+          appointment={editingAppointment}
+          role={role}
+          onClose={closeEditModal}
+          onSave={handleSaveAppointment}
+        />
+      )}
+
+      {isCancelModalOpen && appointmentToCancel && (
+        <div className="calendar-modal-overlay">
+          <div className="calendar-modal calendar-modal--delete">
+            <div className="calendar-modal-header">
+              <h2 className="calendar-modal-title">Cancel Appointment</h2>
+              <button
+                type="button"
+                className="calendar-modal-close"
+                onClick={closeCancelModal}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="calendar-delete-content">
+              <div className="calendar-delete-icon">🗑</div>
+              <div className="calendar-delete-text">
+                Are you sure you want to cancel the appointment for{" "}
+                <strong>{appointmentToCancel.customerName}</strong> on{" "}
+                <strong>
+                  {format(appointmentToCancel.start as Date, "EEE d MMM, HH:mm")}
+                </strong>
+                ?
+              </div>
+            </div>
+
+            <div className="calendar-modal-actions calendar-modal-actions--center">
+              <button
+                type="button"
+                className="calendar-btn-danger"
+                onClick={confirmCancelAppointment}
+              >
+                Confirm Cancel
+              </button>
+
+              <button
+                type="button"
+                className="calendar-btn-ghost"
+                onClick={closeCancelModal}
+              >
+                Keep Appointment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
