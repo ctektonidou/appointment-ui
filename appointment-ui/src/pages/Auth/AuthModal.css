@@ -254,3 +254,17 @@ select.auth-modal-input {
 .auth-modal-password-toggle:focus {
   outline: none;
 }
+
+.auth-modal-helper-text {
+  margin: 8px 0 18px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #667085;
+}
+
+.auth-modal-field-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #98a2b3;
+}

@@ -33,6 +33,7 @@ function saveAuthUser(user: AuthUser) {
 
 export default function AuthModal({ role, onClose }: AuthModalProps) {
   const navigate = useNavigate();
+
   const isCustomer = role === "customer";
   const isStaff = role === "staff";
   const isBusiness = role === "business";
@@ -453,6 +454,11 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
                 Staff Sign up
               </h2>
 
+              <p className="auth-modal-helper-text">
+                Use your business code and the same email your business has on file.
+                If your manager already added you, your account will be linked automatically.
+              </p>
+
               <div className="auth-modal-form-grid auth-modal-form-grid--two">
                 <div className="auth-modal-field">
                   <label className="auth-modal-label">first name</label>
@@ -482,6 +488,9 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
                     value={staffSignupEmail}
                     onChange={(e) => setStaffSignupEmail(e.target.value)}
                   />
+                  <div className="auth-modal-field-hint">
+                    This should match the email registered by your business.
+                  </div>
                 </div>
 
                 <div className="auth-modal-field">
@@ -492,6 +501,9 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
                     value={staffSignupBusinessCode}
                     onChange={(e) => setStaffSignupBusinessCode(e.target.value)}
                   />
+                  <div className="auth-modal-field-hint">
+                    Provided by your business owner or manager.
+                  </div>
                 </div>
 
                 <div className="auth-modal-field">
@@ -512,6 +524,9 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
                     value={staffSignupColorHex}
                     onChange={(e) => setStaffSignupColorHex(e.target.value)}
                   />
+                  <div className="auth-modal-field-hint">
+                    This color can be used to display your appointments in the calendar.
+                  </div>
                 </div>
 
                 <div className="auth-modal-field auth-modal-field--span-2">
@@ -586,6 +601,11 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
               <h2 className="auth-modal-heading auth-modal-heading--left">
                 Business Sign up
               </h2>
+
+              <p className="auth-modal-helper-text">
+                Create your owner account and your business profile together.
+                You can add and manage staff after registration.
+              </p>
 
               <div className="auth-modal-form-grid auth-modal-form-grid--two">
                 <div className="auth-modal-field">
