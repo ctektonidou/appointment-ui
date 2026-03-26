@@ -1,7 +1,5 @@
 import { http } from "./http";
 
-const API_BASE = "http://localhost:8080/api";
-
 export type Staff = {
   id: number;
   businessId: number;
@@ -10,8 +8,9 @@ export type Staff = {
   lastName?: string | null;
   email?: string | null;
   phone?: string | null;
+  colorHex?: string | null;
   isActive: boolean;
-  createdAt?: string; // ISO string
+  createdAt?: string;
 };
 
 export type CreateStaffRequest = {
@@ -19,25 +18,73 @@ export type CreateStaffRequest = {
   lastName?: string | null;
   email?: string | null;
   phone?: string | null;
+  colorHex?: string | null;
   isActive?: boolean;
   userId?: number | null;
 };
 
 export type UpdateStaffRequest = CreateStaffRequest;
 
-export async function listStaff(businessId: number): Promise<Staff[]> {
-  // Adjust path if your backend differs
-  return http<Staff[]>(`/api/businesses/${businessId}/staff`);
+const API_BASE = "http://localhost:8080/api";
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Request failed");
+  }
+
+  return data as T;
+}
+
+export async function listStaff(
+  businessId: number,
+  activeOnly = false
+): Promise<Staff[]> {
+  const response = await fetch(
+    `${API_BASE}/businesses/${businessId}/staff?activeOnly=${String(activeOnly)}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  return handleResponse<Staff[]>(response);
+}
+
+export async function getStaff(
+  businessId: number,
+  staffId: number
+): Promise<Staff> {
+  const response = await fetch(
+    `${API_BASE}/businesses/${businessId}/staff/${staffId}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  return handleResponse<Staff>(response);
 }
 
 export async function createStaff(
   businessId: number,
   req: CreateStaffRequest
 ): Promise<Staff> {
-  return http<Staff>(`/api/businesses/${businessId}/staff`, {
+  const response = await fetch(`${API_BASE}/businesses/${businessId}/staff`, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(req),
   });
+
+  return handleResponse<Staff>(response);
 }
 
 export async function updateStaff(
@@ -45,36 +92,35 @@ export async function updateStaff(
   staffId: number,
   body: UpdateStaffRequest
 ): Promise<Staff> {
-  const res = await fetch(
+  const response = await fetch(
     `${API_BASE}/businesses/${businessId}/staff/${staffId}`,
     {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(body),
     }
   );
 
-  if (!res.ok) {
-    throw new Error("Failed to update staff");
-  }
-  return res.json();
+  return handleResponse<Staff>(response);
 }
 
 export async function deleteStaff(
   businessId: number,
   staffId: number
 ): Promise<void> {
-  const res = await fetch(
+  const response = await fetch(
     `${API_BASE}/businesses/${businessId}/staff/${staffId}`,
     {
       method: "DELETE",
     }
   );
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
     throw new Error(
-      text || `Failed to delete staff member (status ${res.status})`
+      text || `Failed to delete staff member (status ${response.status})`
     );
   }
 }

@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   createStaff,
   listStaff,
@@ -8,6 +7,7 @@ import {
   type Staff,
   type CreateStaffRequest,
 } from "../../api/staff";
+import { getPrimaryBusinessByOwnerUserId } from "../../api/businessApi";
 import StaffForm, {
   type StaffFormValues,
   type StaffFormMode,
@@ -15,28 +15,45 @@ import StaffForm, {
 import StaffTable from "./components/StaffTable/StaffTable";
 import "./StaffPage.css";
 
+function getUserId(): number | null {
+  const storedUserId = localStorage.getItem("userId");
+  if (!storedUserId) return null;
+
+  const parsed = Number(storedUserId);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 export default function StaffPage() {
-  const params = useParams();
-  const businessId = useMemo(
-    () => Number(params.businessId),
-    [params.businessId]
-  );
+  const [businessId, setBusinessId] = useState<number | null>(null);
+  const [businessName, setBusinessName] = useState<string>("");
 
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // modal state
   const [modalMode, setModalMode] = useState<StaffFormMode>("create");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function load() {
+    const userId = getUserId();
+
+    if (!userId) {
+      setError("User id not found.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
     try {
-      const data = await listStaff(businessId);
+      const business = await getPrimaryBusinessByOwnerUserId(userId);
+      setBusinessId(business.id);
+      setBusinessName(business.name);
+
+      const data = await listStaff(business.id, false);
       setStaff(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -46,14 +63,8 @@ export default function StaffPage() {
   }
 
   useEffect(() => {
-    if (!Number.isFinite(businessId) || businessId <= 0) {
-      setError("Invalid businessId in URL.");
-      setLoading(false);
-      return;
-    }
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [businessId]);
+  }, []);
 
   function openCreateModal() {
     setModalMode("create");
@@ -73,18 +84,32 @@ export default function StaffPage() {
   }
 
   async function handleSave(values: StaffFormValues) {
+    if (!businessId) {
+      setError("Business id not found.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
+
     try {
       if (modalMode === "create") {
-        const created = await createStaff(businessId, values as CreateStaffRequest);
+        const created = await createStaff(
+          businessId,
+          values as CreateStaffRequest
+        );
         setStaff((prev) => [...prev, created]);
       } else if (modalMode === "edit" && selectedStaff) {
-        const updated = await updateStaff(businessId, selectedStaff.id, values);
+        const updated = await updateStaff(
+          businessId,
+          selectedStaff.id,
+          values
+        );
         setStaff((prev) =>
           prev.map((s) => (s.id === updated.id ? updated : s))
         );
       }
+
       closeModal();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -94,16 +119,28 @@ export default function StaffPage() {
   }
 
   async function handleDelete(staffMember: Staff) {
-  if (!window.confirm(`Delete staff member "${staffMember.firstName}"?`)) {
+  if (!businessId) {
+    setError("Business id not found.");
+    return;
+  }
+
+  if (
+    !window.confirm(
+      `Delete staff member "${staffMember.firstName} ${staffMember.lastName ?? ""}"?`
+    )
+  ) {
     return;
   }
 
   setError(null);
+
   try {
     await deleteStaff(businessId, staffMember.id);
     setStaff((prev) => prev.filter((s) => s.id !== staffMember.id));
   } catch (e) {
-    setError(e instanceof Error ? e.message : "Failed to delete staff member.");
+    setError(
+      e instanceof Error ? e.message : "Failed to delete staff member."
+    );
   }
 }
 
@@ -112,9 +149,9 @@ export default function StaffPage() {
       <div className="staff-page-header">
         <div>
           <h1 className="staff-page-title">Staff</h1>
-          {params.businessId && (
+          {businessName && (
             <p className="staff-page-subtitle">
-              Business ID: <b>{params.businessId}</b>
+              Business: <b>{businessName}</b>
             </p>
           )}
         </div>
@@ -123,6 +160,7 @@ export default function StaffPage() {
           type="button"
           className="staff-add-button"
           onClick={openCreateModal}
+          disabled={!businessId}
         >
           Add Staff
         </button>
@@ -133,7 +171,11 @@ export default function StaffPage() {
       {loading ? (
         <div>Loading staff...</div>
       ) : (
-        <StaffTable staff={staff} onEdit={openEditModal} onDelete={handleDelete}/>
+        <StaffTable
+          staff={staff}
+          onEdit={openEditModal}
+          onDelete={handleDelete}
+        />
       )}
 
       {modalOpen && (

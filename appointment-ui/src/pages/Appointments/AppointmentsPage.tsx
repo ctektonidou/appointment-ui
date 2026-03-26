@@ -1,59 +1,20 @@
-import { useMemo, useState } from "react";
-import { format, isAfter, isBefore, parseISO, startOfDay, endOfDay } from "date-fns";
+import { useEffect, useState } from "react";
+import { format, parseISO } from "date-fns";
+import {
+  searchOwnerAppointments,
+  searchStaffAppointments,
+  searchCustomerAppointments,
+  type AppointmentListItem,
+} from "../../api/appointments";
 import "./AppointmentsPage.css";
 
 type UserRole = "owner" | "staff" | "customer";
-
-type Status = "ACTIVE" | "CANCELLED" | "NO_SHOW";
-
-type Appointment = {
-  id: number;
-  start: string;
-  durationMinutes: number;
-  customerName: string;
-  businessName: string;
-  staffName: string;
-  serviceName: string;
-  status: Status;
-};
-
-const DEMO_APPOINTMENTS: Appointment[] = [
-  {
-    id: 1,
-    start: "2026-10-10T08:00:00",
-    durationMinutes: 60,
-    customerName: "John Smith",
-    businessName: "Anna's Saloon",
-    staffName: "Peter",
-    serviceName: "Haircut",
-    status: "ACTIVE",
-  },
-  {
-    id: 2,
-    start: "2026-10-10T09:00:00",
-    durationMinutes: 60,
-    customerName: "John Smith",
-    businessName: "Anna's Saloon",
-    staffName: "Peter",
-    serviceName: "Haircut",
-    status: "ACTIVE",
-  },
-  {
-    id: 3,
-    start: "2026-10-10T10:00:00",
-    durationMinutes: 60,
-    customerName: "John Smith",
-    businessName: "Anna's Saloon",
-    staffName: "Peter",
-    serviceName: "Haircut",
-    status: "ACTIVE",
-  },
-];
+type StatusFilter = "ALL" | "SCHEDULED" | "CANCELLED" | "NO_SHOW";
 
 type Filters = {
   from: string;
   to: string;
-  status: string;
+  status: StatusFilter;
   staff: string;
   service: string;
   business: string;
@@ -70,6 +31,24 @@ function getStoredUserRole(): UserRole {
   return "customer";
 }
 
+function getUserId(): number | null {
+  const storedUserId = localStorage.getItem("userId");
+  if (!storedUserId) return null;
+
+  const parsed = Number(storedUserId);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function toApiDateFrom(dateValue: string): string | undefined {
+  if (!dateValue) return undefined;
+  return `${dateValue}T00:00:00`;
+}
+
+function toApiDateTo(dateValue: string): string | undefined {
+  if (!dateValue) return undefined;
+  return `${dateValue}T23:59:59`;
+}
+
 export default function AppointmentsPage() {
   const role: UserRole = getStoredUserRole();
 
@@ -77,7 +56,7 @@ export default function AppointmentsPage() {
   const isStaff = role === "staff";
   const isCustomer = role === "customer";
 
-  const [filters, setFilters] = useState<Filters>({
+  const [draftFilters, setDraftFilters] = useState<Filters>({
     from: "",
     to: "",
     status: "ALL",
@@ -87,70 +66,91 @@ export default function AppointmentsPage() {
     search: "",
   });
 
+  const [appliedFilters, setAppliedFilters] = useState<Filters>({
+    from: "",
+    to: "",
+    status: "ALL",
+    staff: "ALL",
+    service: "ALL",
+    business: "ALL",
+    search: "",
+  });
+
+  const [appointments, setAppointments] = useState<AppointmentListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
   const [page, setPage] = useState(1);
 
-  function updateFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
-    setFilters((prev) => ({
+  function updateDraftFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
+    setDraftFilters((prev) => ({
       ...prev,
       [key]: value,
     }));
+  }
+
+  async function loadAppointments(filters: Filters) {
+    const userId = getUserId();
+
+    if (!userId) {
+      setErrorMessage("User id not found.");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage("");
+
+    try {
+      let data: AppointmentListItem[] = [];
+
+      if (isOwner) {
+        data = await searchOwnerAppointments({
+          userId,
+          from: toApiDateFrom(filters.from),
+          to: toApiDateTo(filters.to),
+          status: filters.status,
+          search: filters.search,
+        });
+      } else if (isStaff) {
+        data = await searchStaffAppointments({
+          userId,
+          from: toApiDateFrom(filters.from),
+          to: toApiDateTo(filters.to),
+          status: filters.status,
+          search: filters.search,
+        });
+      } else {
+        data = await searchCustomerAppointments({
+          userId,
+          from: toApiDateFrom(filters.from),
+          to: toApiDateTo(filters.to),
+          status: filters.status,
+          search: filters.search,
+        });
+      }
+
+      setAppointments(data);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to load appointments"
+      );
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadAppointments(appliedFilters);
+  }, [appliedFilters]);
+
+  function onSearch() {
+    setAppliedFilters(draftFilters);
     setPage(1);
   }
 
-  const filtered = useMemo(() => {
-    return DEMO_APPOINTMENTS.filter((appt) => {
-      const startDate = parseISO(appt.start);
-
-      if (filters.from) {
-        const fromDate = startOfDay(parseISO(filters.from));
-        if (isBefore(startDate, fromDate)) return false;
-      }
-
-      if (filters.to) {
-        const toDate = endOfDay(parseISO(filters.to));
-        if (isAfter(startDate, toDate)) return false;
-      }
-
-      if (filters.status !== "ALL" && appt.status !== filters.status) {
-        return false;
-      }
-
-      if (isOwner && filters.staff !== "ALL" && appt.staffName !== filters.staff) {
-        return false;
-      }
-
-      if (isStaff && appt.staffName !== "Peter") {
-        return false;
-      }
-
-      if (filters.service !== "ALL" && appt.serviceName !== filters.service) {
-        return false;
-      }
-
-      if (isCustomer && filters.business !== "ALL" && appt.businessName !== filters.business) {
-        return false;
-      }
-
-      const term = filters.search.trim().toLowerCase();
-      if (term) {
-        const haystack = [
-          appt.customerName,
-          appt.businessName,
-          appt.staffName,
-          appt.serviceName,
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        if (!haystack.includes(term)) return false;
-      }
-
-      return true;
-    });
-  }, [filters, isOwner, isStaff, isCustomer]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageCount = Math.max(1, Math.ceil(appointments.length / PAGE_SIZE));
+  const pageItems = appointments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="appointments-page">
@@ -163,8 +163,8 @@ export default function AppointmentsPage() {
             <input
               type="date"
               className="appointments-input"
-              value={filters.from}
-              onChange={(e) => updateFilter("from", e.target.value)}
+              value={draftFilters.from}
+              onChange={(e) => updateDraftFilter("from", e.target.value)}
             />
           </div>
 
@@ -173,8 +173,8 @@ export default function AppointmentsPage() {
             <input
               type="date"
               className="appointments-input"
-              value={filters.to}
-              onChange={(e) => updateFilter("to", e.target.value)}
+              value={draftFilters.to}
+              onChange={(e) => updateDraftFilter("to", e.target.value)}
             />
           </div>
 
@@ -182,11 +182,13 @@ export default function AppointmentsPage() {
             <label className="appointments-label">Status</label>
             <select
               className="appointments-input"
-              value={filters.status}
-              onChange={(e) => updateFilter("status", e.target.value)}
+              value={draftFilters.status}
+              onChange={(e) =>
+                updateDraftFilter("status", e.target.value as StatusFilter)
+              }
             >
               <option value="ALL">All</option>
-              <option value="ACTIVE">ACTIVE</option>
+              <option value="SCHEDULED">SCHEDULED</option>
               <option value="CANCELLED">CANCELLED</option>
               <option value="NO_SHOW">NO SHOW</option>
             </select>
@@ -197,39 +199,23 @@ export default function AppointmentsPage() {
               <label className="appointments-label">Staff</label>
               <select
                 className="appointments-input"
-                value={filters.staff}
-                onChange={(e) => updateFilter("staff", e.target.value)}
+                value={draftFilters.staff}
+                onChange={(e) => updateDraftFilter("staff", e.target.value)}
               >
                 <option value="ALL">All Staff</option>
-                <option value="Peter">Peter</option>
               </select>
             </div>
           )}
 
-          {isStaff && (
+          {(isStaff || isCustomer) && (
             <div className="appointments-field">
               <label className="appointments-label">Service</label>
               <select
                 className="appointments-input"
-                value={filters.service}
-                onChange={(e) => updateFilter("service", e.target.value)}
+                value={draftFilters.service}
+                onChange={(e) => updateDraftFilter("service", e.target.value)}
               >
                 <option value="ALL">All</option>
-                <option value="Haircut">Haircut</option>
-              </select>
-            </div>
-          )}
-
-          {isCustomer && (
-            <div className="appointments-field">
-              <label className="appointments-label">Service</label>
-              <select
-                className="appointments-input"
-                value={filters.service}
-                onChange={(e) => updateFilter("service", e.target.value)}
-              >
-                <option value="ALL">All</option>
-                <option value="Haircut">Haircut</option>
               </select>
             </div>
           )}
@@ -241,11 +227,10 @@ export default function AppointmentsPage() {
               <label className="appointments-label">Service</label>
               <select
                 className="appointments-input"
-                value={filters.service}
-                onChange={(e) => updateFilter("service", e.target.value)}
+                value={draftFilters.service}
+                onChange={(e) => updateDraftFilter("service", e.target.value)}
               >
                 <option value="ALL">All</option>
-                <option value="Haircut">Haircut</option>
               </select>
             </div>
           )}
@@ -257,11 +242,10 @@ export default function AppointmentsPage() {
               <label className="appointments-label">Business</label>
               <select
                 className="appointments-input"
-                value={filters.business}
-                onChange={(e) => updateFilter("business", e.target.value)}
+                value={draftFilters.business}
+                onChange={(e) => updateDraftFilter("business", e.target.value)}
               >
                 <option value="ALL">All</option>
-                <option value="Anna's Saloon">Anna&apos;s Saloon</option>
               </select>
             </div>
           )}
@@ -272,8 +256,8 @@ export default function AppointmentsPage() {
               type="text"
               className="appointments-input"
               placeholder="Search..."
-              value={filters.search}
-              onChange={(e) => updateFilter("search", e.target.value)}
+              value={draftFilters.search}
+              onChange={(e) => updateDraftFilter("search", e.target.value)}
             />
           </div>
 
@@ -281,13 +265,16 @@ export default function AppointmentsPage() {
             <button
               type="button"
               className="appointments-btn-primary"
-              onClick={() => setPage(1)}
+              onClick={onSearch}
+              disabled={loading}
             >
-              Search
+              {loading ? "Loading..." : "Search"}
             </button>
           </div>
         </div>
       </div>
+
+      {errorMessage && <div className="appointments-error">{errorMessage}</div>}
 
       <div className="appointments-table-wrapper">
         <table className="appointments-table">
@@ -295,15 +282,20 @@ export default function AppointmentsPage() {
             <tr>
               <th>Date</th>
               <th>Time</th>
-              {isCustomer && <th>Business</th>}
-              {!isCustomer && <th>Customer</th>}
+              {isCustomer ? <th>Business</th> : <th>Customer</th>}
               <th>Service</th>
               {(isOwner || isCustomer) && <th>Staff</th>}
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {pageItems.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={isCustomer ? 6 : isOwner ? 6 : 5} className="appointments-empty">
+                  Loading appointments...
+                </td>
+              </tr>
+            ) : pageItems.length === 0 ? (
               <tr>
                 <td colSpan={isCustomer ? 6 : isOwner ? 6 : 5} className="appointments-empty">
                   No appointments found.
@@ -311,7 +303,7 @@ export default function AppointmentsPage() {
               </tr>
             ) : (
               pageItems.map((appt) => {
-                const start = parseISO(appt.start);
+                const start = parseISO(appt.startTime);
                 const dateStr = format(start, "dd/MM/yyyy");
                 const timeStr = format(start, "H:mm");
 
@@ -319,8 +311,7 @@ export default function AppointmentsPage() {
                   <tr key={appt.id}>
                     <td>{dateStr}</td>
                     <td>{timeStr}</td>
-                    {isCustomer && <td>{appt.businessName}</td>}
-                    {!isCustomer && <td>{appt.customerName}</td>}
+                    {isCustomer ? <td>{appt.businessName}</td> : <td>{appt.customerName}</td>}
                     <td>{appt.serviceName}</td>
                     {(isOwner || isCustomer) && <td>{appt.staffName}</td>}
                     <td>{appt.status}</td>

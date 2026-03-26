@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  searchPublicBusinesses,
+  type BusinessResponse,
+} from "../../api/businessApi";
 import "./BusinessesPage.css";
 
 type UserRole = "owner" | "staff" | "customer";
 
-export type BusinessCard = {
+type BusinessCard = {
   id: number;
   name: string;
   category: string;
@@ -14,13 +18,13 @@ export type BusinessCard = {
 };
 
 const INDUSTRY_OPTIONS = [
-  "All industries",
-  "Hair Salon",
-  "Barber Shop",
-  "Nails",
-  "Spa",
-  "Massage",
-  "Physiotherapy",
+  { value: "", label: "All industries" },
+  { value: "1", label: "Hair Salon" },
+  { value: "2", label: "Barber Shop" },
+  { value: "4", label: "Nails" },
+  { value: "3", label: "Spa" },
+  { value: "5", label: "Massage" },
+  { value: "6", label: "Physiotherapy" },
 ];
 
 const LOCATION_OPTIONS = [
@@ -32,41 +36,6 @@ const LOCATION_OPTIONS = [
   "Toumba",
 ];
 
-const DEMO_BUSINESSES: BusinessCard[] = [
-  {
-    id: 1,
-    name: "Business Name",
-    category: "Hair Salon",
-    location: "Thessaloniki - Center",
-    openHours: "9:00 - 19:00",
-    services: "Haircut, colouring",
-  },
-  {
-    id: 2,
-    name: "Business Name",
-    category: "Hair Salon",
-    location: "Thessaloniki - Center",
-    openHours: "9:00 - 19:00",
-    services: "Haircut, colouring",
-  },
-  {
-    id: 3,
-    name: "Glow Studio",
-    category: "Spa",
-    location: "Kalamaria",
-    openHours: "10:00 - 20:00",
-    services: "Massage, facial",
-  },
-  {
-    id: 4,
-    name: "Urban Barber",
-    category: "Barber Shop",
-    location: "Thessaloniki - East",
-    openHours: "10:00 - 21:00",
-    services: "Fade, beard trim",
-  },
-];
-
 function getStoredUserRole(): UserRole {
   const storedRole = localStorage.getItem("userRole");
 
@@ -75,44 +44,102 @@ function getStoredUserRole(): UserRole {
   return "customer";
 }
 
+function getIndustryLabel(industryId: number | null): string {
+  const found = INDUSTRY_OPTIONS.find(
+    (option) => option.value !== "" && Number(option.value) === industryId
+  );
+  return found?.label ?? "Unknown industry";
+}
+
+function toBusinessCard(business: BusinessResponse): BusinessCard {
+  return {
+    id: business.id,
+    name: business.name,
+    category: getIndustryLabel(business.industryId),
+    location: business.location || "Location not available",
+    openHours: "Not available yet",
+    services: "Available on next step",
+  };
+}
+
 export default function BusinessesPage() {
   const role = getStoredUserRole();
   const isCustomer = role === "customer";
   const navigate = useNavigate();
 
-  const [industry, setIndustry] = useState("All industries");
+  const [industry, setIndustry] = useState("");
   const [location, setLocation] = useState("All locations");
   const [searchName, setSearchName] = useState("");
+
   const [submittedFilters, setSubmittedFilters] = useState({
-    industry: "All industries",
+    industry: "",
     location: "All locations",
     searchName: "",
   });
 
-  const filteredBusinesses = useMemo(() => {
-    return DEMO_BUSINESSES.filter((business) => {
-      const matchesIndustry =
-        submittedFilters.industry === "All industries" ||
-        business.category.toLowerCase() === submittedFilters.industry.toLowerCase();
+  const [businesses, setBusinesses] = useState<BusinessCard[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-      const matchesLocation =
-        submittedFilters.location === "All locations" ||
-        business.location.toLowerCase() === submittedFilters.location.toLowerCase();
-
-      const matchesName =
-        submittedFilters.searchName.trim() === "" ||
-        business.name.toLowerCase().includes(submittedFilters.searchName.toLowerCase());
-
-      return matchesIndustry && matchesLocation && matchesName;
-    });
-  }, [submittedFilters]);
-
-  function onSearch() {
-    setSubmittedFilters({
+  async function runSearch(filters?: {
+    industry: string;
+    location: string;
+    searchName: string;
+  }) {
+    const activeFilters = filters ?? {
       industry,
       location,
       searchName,
-    });
+    };
+
+    setIsSearching(true);
+    setErrorMessage("");
+
+    try {
+      const results = await searchPublicBusinesses({
+        name: activeFilters.searchName,
+        location:
+          activeFilters.location !== "All locations"
+            ? activeFilters.location
+            : undefined,
+        industryId: activeFilters.industry
+          ? Number(activeFilters.industry)
+          : undefined,
+      });
+
+      setBusinesses(results.map(toBusinessCard));
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to load businesses"
+      );
+      setBusinesses([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!isCustomer) return;
+
+    const initialFilters = {
+      industry: "",
+      location: "All locations",
+      searchName: "",
+    };
+
+    setSubmittedFilters(initialFilters);
+    runSearch(initialFilters);
+  }, [isCustomer]);
+
+  function onSearch() {
+    const nextFilters = {
+      industry,
+      location,
+      searchName,
+    };
+
+    setSubmittedFilters(nextFilters);
+    runSearch(nextFilters);
   }
 
   function onViewServices(business: BusinessCard) {
@@ -147,8 +174,8 @@ export default function BusinessesPage() {
               onChange={(e) => setIndustry(e.target.value)}
             >
               {INDUSTRY_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
@@ -185,25 +212,32 @@ export default function BusinessesPage() {
             type="button"
             className="businesses-search-btn"
             onClick={onSearch}
+            disabled={isSearching}
           >
-            Search
+            {isSearching ? "Searching..." : "Search"}
           </button>
         </div>
 
         <div className="businesses-results">
-          {filteredBusinesses.length === 0 ? (
+          {errorMessage ? (
+            <div className="businesses-empty">{errorMessage}</div>
+          ) : isSearching ? (
+            <div className="businesses-empty">Searching businesses...</div>
+          ) : businesses.length === 0 ? (
             <div className="businesses-empty">
               No businesses found for the selected filters.
             </div>
           ) : (
-            filteredBusinesses.map((business) => (
+            businesses.map((business) => (
               <div key={business.id} className="business-card">
                 <div className="business-card-header">
                   <div className="business-card-logo">✂</div>
 
                   <div className="business-card-title-wrap">
                     <div className="business-card-title">{business.name}</div>
-                    <div className="business-card-category">{business.category}</div>
+                    <div className="business-card-category">
+                      {business.category}
+                    </div>
                   </div>
                 </div>
 

@@ -1,24 +1,21 @@
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthModal from "../../pages/Auth/AuthModal";
 import type { AuthModalRole } from "../../pages/Auth/AuthModal";
+import {
+  searchPublicBusinesses,
+  type BusinessResponse,
+} from "../../api/businessApi";
 import "./LandingPage.css";
 
-type BusinessCard = {
-  id: number;
-  name: string;
-  category: string;
-  location: string;
-};
-
 const INDUSTRY_OPTIONS = [
-  "All industries",
-  "Hair Salon",
-  "Barber Shop",
-  "Nails",
-  "Spa",
-  "Massage",
-  "Physiotherapy",
+  { value: "", label: "All industries" },
+  { value: "1", label: "Hair Salon" },
+  { value: "2", label: "Barber Shop" },
+  { value: "4", label: "Nails" },
+  { value: "3", label: "Spa" },
+  { value: "5", label: "Massage" },
+  { value: "6", label: "Physiotherapy" },
 ];
 
 const LOCATION_OPTIONS = [
@@ -30,39 +27,24 @@ const LOCATION_OPTIONS = [
   "Toumba",
 ];
 
-const DEMO_BUSINESSES: BusinessCard[] = [
-  {
-    id: 1,
-    name: "Business Name",
-    category: "Hair Salon",
-    location: "Thessaloniki - Center",
-  },
-  {
-    id: 2,
-    name: "Glow Studio",
-    category: "Spa",
-    location: "Kalamaria",
-  },
-  {
-    id: 3,
-    name: "Urban Barber",
-    category: "Barber Shop",
-    location: "Thessaloniki - East",
-  },
-];
-
 export default function LandingPage() {
   const navigate = useNavigate();
   const loginMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const [industry, setIndustry] = useState("All industries");
+  const [industry, setIndustry] = useState("");
   const [location, setLocation] = useState("All locations");
   const [searchName, setSearchName] = useState("");
+
   const [submittedFilters, setSubmittedFilters] = useState({
-    industry: "All industries",
+    industry: "",
     location: "All locations",
     searchName: "",
   });
+
+  const [businessResults, setBusinessResults] = useState<BusinessResponse[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
 
   const [loginMenuOpen, setLoginMenuOpen] = useState(false);
   const [authModalRole, setAuthModalRole] = useState<AuthModalRole | null>(null);
@@ -86,30 +68,33 @@ export default function LandingPage() {
     };
   }, [loginMenuOpen]);
 
-  const filteredBusinesses = useMemo(() => {
-    return DEMO_BUSINESSES.filter((business) => {
-      const matchesIndustry =
-        submittedFilters.industry === "All industries" ||
-        business.category.toLowerCase() === submittedFilters.industry.toLowerCase();
-
-      const matchesLocation =
-        submittedFilters.location === "All locations" ||
-        business.location.toLowerCase() === submittedFilters.location.toLowerCase();
-
-      const matchesName =
-        submittedFilters.searchName.trim() === "" ||
-        business.name.toLowerCase().includes(submittedFilters.searchName.toLowerCase());
-
-      return matchesIndustry && matchesLocation && matchesName;
-    });
-  }, [submittedFilters]);
-
-  function onSearch() {
+  async function onSearch() {
     setSubmittedFilters({
       industry,
       location,
       searchName,
     });
+
+    setIsSearching(true);
+    setSearchError("");
+    setHasSearched(true);
+
+    try {
+      const results = await searchPublicBusinesses({
+        name: searchName,
+        location: location,
+        industryId: industry ? Number(industry) : undefined,
+      });
+
+      setBusinessResults(results);
+    } catch (error) {
+      setSearchError(
+        error instanceof Error ? error.message : "Failed to search businesses"
+      );
+      setBusinessResults([]);
+    } finally {
+      setIsSearching(false);
+    }
   }
 
   function onCreateAppointment() {
@@ -224,8 +209,8 @@ export default function LandingPage() {
                 onChange={(e) => setIndustry(e.target.value)}
               >
                 {INDUSTRY_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
@@ -261,23 +246,45 @@ export default function LandingPage() {
                 type="button"
                 className="landing-search-btn"
                 onClick={onSearch}
+                disabled={isSearching}
               >
-                Search
+                {isSearching ? "Searching..." : "Search"}
               </button>
             </div>
           </div>
 
-          {submittedFilters.industry !== "All industries" ||
-          submittedFilters.location !== "All locations" ||
-          submittedFilters.searchName.trim() !== "" ? (
+          {hasSearched ? (
             <div className="landing-search-results-preview">
-              {filteredBusinesses.length === 0 ? (
+              {isSearching ? (
+                <div className="landing-search-empty">Searching...</div>
+              ) : searchError ? (
+                <div className="landing-search-empty">{searchError}</div>
+              ) : businessResults.length === 0 ? (
                 <div className="landing-search-empty">No businesses found.</div>
               ) : (
                 <>
                   <div className="landing-search-count">
-                    Found {filteredBusinesses.length} business
-                    {filteredBusinesses.length === 1 ? "" : "es"}
+                    Found {businessResults.length} business
+                    {businessResults.length === 1 ? "" : "es"}
+                  </div>
+
+                  <div className="landing-search-active-filters">
+                    {(submittedFilters.industry !== "" ||
+                      submittedFilters.location !== "All locations" ||
+                      submittedFilters.searchName.trim() !== "") && (
+                      <span>
+                        Filters applied
+                        {submittedFilters.searchName.trim() !== ""
+                          ? ` • Name: ${submittedFilters.searchName}`
+                          : ""}
+                        {submittedFilters.industry !== ""
+                          ? ` • Industry ID: ${submittedFilters.industry}`
+                          : ""}
+                        {submittedFilters.location !== "All locations"
+                          ? ` • Location: ${submittedFilters.location}`
+                          : ""}
+                      </span>
+                    )}
                   </div>
 
                   <button

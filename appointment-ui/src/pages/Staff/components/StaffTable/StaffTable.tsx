@@ -8,7 +8,11 @@ interface StaffTableProps {
   onDelete: (staff: Staff) => void;
 }
 
-export default function StaffTable({ staff, onEdit, onDelete }: StaffTableProps) {
+export default function StaffTable({
+  staff,
+  onEdit,
+  onDelete,
+}: StaffTableProps) {
   if (staff.length === 0) {
     return <div className="staff-table-empty">No staff found.</div>;
   }
@@ -27,10 +31,11 @@ export default function StaffTable({ staff, onEdit, onDelete }: StaffTableProps)
         </thead>
         <tbody>
           {staff.map((s) => (
-            <tr key={s.id}>
+            <tr key={s.id} className={!s.isActive ? "staff-row-inactive" : ""}>
               <td className="staff-col-name">
                 <span
                   className="staff-color-dot"
+                  style={{ backgroundColor: s.colorHex || "#20b2aa" }}
                 />
                 {s.firstName} {s.lastName ?? ""}
               </td>
@@ -46,16 +51,15 @@ export default function StaffTable({ staff, onEdit, onDelete }: StaffTableProps)
                 >
                   ✏️
                 </button>
-                {
-                  <button
-                    type="button"
-                    className="staff-icon-button staff-icon-danger"
-                    title="Delete"
-                    onClick={() => onDelete(s)}
-                  >
-                    🗑
-                  </button>
-                }
+
+                <button
+                  type="button"
+                  className="staff-icon-button staff-icon-danger"
+                  title="Delete"
+                  onClick={() => onDelete(s)}
+                >
+                  🗑
+                </button>
               </td>
             </tr>
           ))}

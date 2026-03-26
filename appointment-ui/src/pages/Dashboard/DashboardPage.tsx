@@ -1,6 +1,14 @@
-// src/pages/Dashboard/DashboardPage.tsx
 import "./DashboardPage.css";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import {
+  getCustomerDashboard,
+  getCustomerStats,
+  getStaffStats,
+  getOwnerStats,
+  type CustomerDashboardResponse,
+  type DashboardStatsResponse,
+} from "../../api/dashboardApi";
 
 type UserRole = "owner" | "staff" | "customer";
 
@@ -16,6 +24,14 @@ function getUserRole(): UserRole {
   }
 
   return "customer";
+}
+
+function getUserId(): number | null {
+  const storedUserId = localStorage.getItem("userId");
+  if (!storedUserId) return null;
+
+  const parsed = Number(storedUserId);
+  return Number.isNaN(parsed) ? null : parsed;
 }
 
 type StatCardProps = {
@@ -34,6 +50,11 @@ function StatCard({ value, label, subLabel }: StatCardProps) {
   );
 }
 
+function formatTime(value: string): string {
+  const date = new Date(value);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const role: UserRole = getUserRole();
@@ -42,10 +63,80 @@ export default function DashboardPage() {
   const isStaff = role === "staff";
   const isCustomer = role === "customer";
 
+  const [customerDashboard, setCustomerDashboard] =
+    useState<CustomerDashboardResponse | null>(null);
+  const [dashboardStats, setDashboardStats] =
+    useState<DashboardStatsResponse | null>(null);
+
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [loadingCustomerTable, setLoadingCustomerTable] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
   const title =
     role === "owner"
       ? "Appointments Business Status"
       : "Appointments Status";
+
+  useEffect(() => {
+    const userId = getUserId();
+
+    if (!userId) {
+      setErrorMessage("User id not found");
+      return;
+    }
+
+    setLoadingStats(true);
+    setErrorMessage("");
+
+    const statsPromise = isCustomer
+      ? getCustomerStats(userId)
+      : isStaff
+      ? getStaffStats(userId)
+      : getOwnerStats(userId);
+
+    statsPromise
+      .then((data) => {
+        setDashboardStats(data);
+      })
+      .catch((error) => {
+        setErrorMessage(
+          error instanceof Error ? error.message : "Failed to load dashboard stats"
+        );
+      })
+      .finally(() => {
+        setLoadingStats(false);
+      });
+  }, [isCustomer, isStaff, isOwner]);
+
+  useEffect(() => {
+    if (!isCustomer) {
+      setCustomerDashboard(null);
+      return;
+    }
+
+    const userId = getUserId();
+
+    if (!userId) {
+      setErrorMessage("User id not found");
+      return;
+    }
+
+    setLoadingCustomerTable(true);
+    setErrorMessage("");
+
+    getCustomerDashboard(userId)
+      .then((data) => {
+        setCustomerDashboard(data);
+      })
+      .catch((error) => {
+        setErrorMessage(
+          error instanceof Error ? error.message : "Failed to load customer appointments"
+        );
+      })
+      .finally(() => {
+        setLoadingCustomerTable(false);
+      });
+  }, [isCustomer]);
 
   function onCreateAppointment() {
     navigate("/create-appointment");
@@ -68,18 +159,36 @@ export default function DashboardPage() {
     <div className="dashboard-page">
       <div className="dash-header-row">
         <h1 className="dash-title">{title}</h1>
-        <div className="dash-date">08/01/2026</div>
+        <div className="dash-date">
+          {new Date().toLocaleDateString("en-GB")}
+        </div>
       </div>
+
+      {errorMessage && (
+        <div className="auth-modal-message auth-modal-message--error">
+          {errorMessage}
+        </div>
+      )}
 
       <div className="dash-stat-row">
         <StatCard
-          value={isCustomer ? "1" : isStaff ? "3" : "7"}
+          value={loadingStats ? "..." : String(dashboardStats?.todayCount ?? 0)}
           label="TODAY"
         />
-        <StatCard value="32" label="THIS WEEK" />
-        <StatCard value="3%" label="CANCEL RATE" />
+        <StatCard
+          value={loadingStats ? "..." : String(dashboardStats?.weekCount ?? 0)}
+          label="THIS WEEK"
+        />
+        <StatCard
+          value={loadingStats ? "..." : `${dashboardStats?.cancelRate ?? 0}%`}
+          label="CANCEL RATE"
+        />
         {isOwner && (
-          <StatCard value="7" label="NO-SHOWS" subLabel="THIS WEEK" />
+          <StatCard
+            value={loadingStats ? "..." : String(dashboardStats?.noShowsCount ?? 0)}
+            label="NO-SHOWS"
+            subLabel="THIS WEEK"
+          />
         )}
       </div>
 
@@ -113,21 +222,34 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>9:00</td>
-                <td>Name Name</td>
-                <td>Service A</td>
-              </tr>
-              <tr>
-                <td>10:00</td>
-                <td>Name Name</td>
-                <td>Service B</td>
-              </tr>
+              {isCustomer &&
+                !loadingCustomerTable &&
+                (customerDashboard?.todayAppointments?.length ?? 0) > 0 &&
+                customerDashboard?.todayAppointments.map((appointment) => (
+                  <tr key={appointment.id}>
+                    <td>{formatTime(appointment.startTime)}</td>
+                    <td>{appointment.clientName}</td>
+                    <td>Service #{appointment.serviceId}</td>
+                  </tr>
+                ))}
+
+              {isCustomer &&
+                !loadingCustomerTable &&
+                (customerDashboard?.todayAppointments?.length ?? 0) === 0 && (
+                  <tr>
+                    <td colSpan={3}>No appointments for today</td>
+                  </tr>
+                )}
+
+              {isCustomer && loadingCustomerTable && (
+                <tr>
+                  <td colSpan={3}>Loading...</td>
+                </tr>
+              )}
+
               {!isCustomer && (
                 <tr>
-                  <td>11:30</td>
-                  <td>Name Name</td>
-                  <td>Service C</td>
+                  <td colSpan={3}>No appointments for today</td>
                 </tr>
               )}
             </tbody>
