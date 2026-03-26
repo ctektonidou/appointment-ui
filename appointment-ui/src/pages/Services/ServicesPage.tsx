@@ -5,6 +5,8 @@ import {
   updateService,
   deleteService,
   createService,
+  activateService,
+  deactivateService,
   type Service,
   type ServiceFormValues,
 } from "../../api/services";
@@ -73,27 +75,31 @@ export default function ServicesPage() {
   }
 
   async function handleToggleActive(service: Service) {
-    const newActive = !service.active;
+  const newActive = !service.active;
 
-    // optimistic update
+  setServices((prev) =>
+    prev.map((s) =>
+      s.id === service.id ? { ...s, active: newActive } : s
+    )
+  );
+
+  try {
+    const updated = newActive
+      ? await activateService(businessId, service.id)
+      : await deactivateService(businessId, service.id);
+
+    setServices((prev) =>
+      prev.map((s) => (s.id === updated.id ? updated : s))
+    );
+  } catch (e) {
     setServices((prev) =>
       prev.map((s) =>
-        s.id === service.id ? { ...s, active: newActive } : s
+        s.id === service.id ? { ...s, active: service.active } : s
       )
     );
-
-    try {
-      await updateService(businessId, service.id, { active: newActive });
-    } catch (e) {
-      // revert on error
-      setServices((prev) =>
-        prev.map((s) =>
-          s.id === service.id ? { ...s, active: service.active } : s
-        )
-      );
-      setError(e instanceof Error ? e.message : "Failed to update service");
-    }
+    setError(e instanceof Error ? e.message : "Failed to update service");
   }
+}
 
   async function handleDelete(service: Service) {
     const ok = window.confirm(

@@ -4,12 +4,24 @@ import "./ServiceFormModal.css";
 
 export type ServiceFormValues = {
   name: string;
-  description?: string;
+  description?: string | null;
   durationMinutes: number;
   priceEuros: number;
   colorHex?: string | null;
   active: boolean;
 };
+
+function toBackendPayload(values: ServiceFormValues) {
+  return {
+    name: values.name.trim(),
+    description: values.description?.trim() || null,
+    durationMinutes: values.durationMinutes,
+    priceAmount: values.priceEuros,
+    currency: "EUR",
+    colorHex: values.colorHex?.trim() || null,
+    isActive: values.active,
+  };
+}
 
 type Props = {
   mode: "create" | "edit";
