@@ -617,6 +617,10 @@
     align-items: flex-start;
   }
 
+  .create-appointment-step-wrapper {
+    width: 100%;
+  }
+
   .create-appointment-step-line {
     display: none;
   }
@@ -639,4 +643,16 @@
   .simple-calendar-header {
     font-size: 22px;
   }
+}
+
+.create-appointment-step-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.create-appointment-selected-business {
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #374151;
 }

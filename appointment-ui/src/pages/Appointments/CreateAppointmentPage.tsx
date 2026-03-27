@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import "./CreateAppointmentPage.css";
 
+import {
+  searchPublicBusinesses,
+  type BusinessResponse,
+} from "../../api/businessApi";
+import { listServices, type Service } from "../../api/services";
+
 type UserRole = "owner" | "staff" | "customer";
 
 type StepKey = 1 | 2 | 3 | 4;
@@ -28,14 +34,20 @@ type StaffMember = {
   name: string;
 };
 
+type AppointmentFilters = {
+  industry: string;
+  location: string;
+  searchName: string;
+};
+
 const INDUSTRY_OPTIONS = [
-  "All industries",
-  "Hair Salon",
-  "Barber Shop",
-  "Nails",
-  "Spa",
-  "Massage",
-  "Physiotherapy",
+  { value: "", label: "All industries" },
+  { value: "1", label: "Hair Salon" },
+  { value: "2", label: "Barber Shop" },
+  { value: "4", label: "Nails" },
+  { value: "3", label: "Spa" },
+  { value: "5", label: "Massage" },
+  { value: "6", label: "Physiotherapy" },
 ];
 
 const LOCATION_OPTIONS = [
@@ -45,56 +57,6 @@ const LOCATION_OPTIONS = [
   "Thessaloniki - West",
   "Kalamaria",
   "Toumba",
-];
-
-const DEMO_BUSINESSES: BusinessCard[] = [
-  {
-    id: 1,
-    name: "Business Name",
-    category: "Hair Salon",
-    location: "Thessaloniki - Center",
-    openHours: "9:00 - 19:00",
-    services: "Haircut, colouring",
-  },
-  {
-    id: 2,
-    name: "Business Name",
-    category: "Hair Salon",
-    location: "Thessaloniki - Center",
-    openHours: "9:00 - 19:00",
-    services: "Haircut, colouring",
-  },
-  {
-    id: 3,
-    name: "Glow Studio",
-    category: "Spa",
-    location: "Kalamaria",
-    openHours: "10:00 - 20:00",
-    services: "Massage, facial",
-  },
-  {
-    id: 4,
-    name: "Urban Barber",
-    category: "Barber Shop",
-    location: "Thessaloniki - East",
-    openHours: "10:00 - 21:00",
-    services: "Fade, beard trim",
-  },
-];
-
-const DEMO_SERVICES: ServiceItem[] = [
-  { id: 1, businessId: 1, name: "Service 1", durationMinutes: 30, price: 50 },
-  { id: 2, businessId: 1, name: "Service 1", durationMinutes: 30, price: 50 },
-  { id: 3, businessId: 1, name: "Service 1", durationMinutes: 30, price: 50 },
-  { id: 4, businessId: 1, name: "Service 1", durationMinutes: 30, price: 50 },
-  { id: 5, businessId: 1, name: "Service 1", durationMinutes: 30, price: 50 },
-  { id: 6, businessId: 1, name: "Service 1", durationMinutes: 30, price: 50 },
-  { id: 7, businessId: 2, name: "Cut", durationMinutes: 30, price: 25 },
-  { id: 8, businessId: 2, name: "Colour", durationMinutes: 60, price: 55 },
-  { id: 9, businessId: 3, name: "Massage", durationMinutes: 60, price: 70 },
-  { id: 10, businessId: 3, name: "Facial", durationMinutes: 45, price: 55 },
-  { id: 11, businessId: 4, name: "Fade", durationMinutes: 30, price: 20 },
-  { id: 12, businessId: 4, name: "Beard Trim", durationMinutes: 20, price: 15 },
 ];
 
 const DEMO_STAFF: StaffMember[] = [
@@ -130,6 +92,34 @@ function getStoredUserRole(): UserRole {
   if (storedRole === "business" || storedRole === "owner") return "owner";
   if (storedRole === "staff") return "staff";
   return "customer";
+}
+
+function getIndustryLabel(industryId: number | null): string {
+  const found = INDUSTRY_OPTIONS.find(
+    (option) => option.value !== "" && Number(option.value) === industryId
+  );
+  return found?.label ?? "Unknown industry";
+}
+
+function toBusinessCard(business: BusinessResponse): BusinessCard {
+  return {
+    id: business.id,
+    name: business.name,
+    category: getIndustryLabel(business.industryId),
+    location: business.location || "Location not available",
+    openHours: "Not available yet",
+    services: "Available on next step",
+  };
+}
+
+function toServiceItem(service: Service): ServiceItem {
+  return {
+    id: service.id,
+    businessId: service.businessId,
+    name: service.name,
+    durationMinutes: service.durationMinutes,
+    price: service.priceEuros,
+  };
 }
 
 function getDaysInMonth(year: number, monthIndex: number) {
@@ -215,24 +205,35 @@ export default function CreateAppointmentPage() {
     | undefined;
 
   const isCustomer = role === "customer";
-
   const today = useMemo(() => createDateOnly(new Date()), []);
 
   const [currentStep, setCurrentStep] = useState<StepKey>(
     navigationState?.step ?? 1
   );
 
-  const [industry, setIndustry] = useState("All industries");
+  const [industry, setIndustry] = useState("");
   const [locationFilter, setLocationFilter] = useState("All locations");
   const [searchName, setSearchName] = useState("");
-  const [submittedFilters, setSubmittedFilters] = useState({
-    industry: "All industries",
+
+  const [submittedFilters, setSubmittedFilters] = useState<AppointmentFilters>({
+    industry: "",
     location: "All locations",
     searchName: "",
   });
+
+  const [businesses, setBusinesses] = useState<BusinessCard[]>([]);
+  const [isSearchingBusinesses, setIsSearchingBusinesses] = useState(false);
+  const [businessesError, setBusinessesError] = useState("");
+
   const [selectedBusiness, setSelectedBusiness] = useState<BusinessCard | null>(
     navigationState?.selectedBusiness ?? null
   );
+
+  const [servicesForSelectedBusiness, setServicesForSelectedBusiness] = useState<
+    ServiceItem[]
+  >([]);
+  const [isLoadingServices, setIsLoadingServices] = useState(false);
+  const [servicesError, setServicesError] = useState("");
 
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
 
@@ -258,32 +259,85 @@ export default function CreateAppointmentPage() {
     [calendarYear, calendarMonthIndex]
   );
 
-  const filteredBusinesses = useMemo(() => {
-    return DEMO_BUSINESSES.filter((business) => {
-      const matchesIndustry =
-        submittedFilters.industry === "All industries" ||
-        business.category.toLowerCase() === submittedFilters.industry.toLowerCase();
-
-      const matchesLocation =
-        submittedFilters.location === "All locations" ||
-        business.location.toLowerCase() === submittedFilters.location.toLowerCase();
-
-      const matchesName =
-        submittedFilters.searchName.trim() === "" ||
-        business.name.toLowerCase().includes(submittedFilters.searchName.toLowerCase());
-
-      return matchesIndustry && matchesLocation && matchesName;
-    });
-  }, [submittedFilters]);
-
-  const servicesForSelectedBusiness = useMemo(() => {
-    if (!selectedBusiness) return [];
-    return DEMO_SERVICES.filter((service) => service.businessId === selectedBusiness.id);
-  }, [selectedBusiness]);
-
   const selectedStaff = useMemo(() => {
     return DEMO_STAFF.find((staff) => staff.id === selectedStaffId) || null;
   }, [selectedStaffId]);
+
+  async function runBusinessSearch(filters?: AppointmentFilters) {
+    const activeFilters = filters ?? {
+      industry,
+      location: locationFilter,
+      searchName,
+    };
+
+    setIsSearchingBusinesses(true);
+    setBusinessesError("");
+
+    try {
+      const results = await searchPublicBusinesses({
+        name: activeFilters.searchName.trim() || undefined,
+        location:
+          activeFilters.location !== "All locations"
+            ? activeFilters.location
+            : undefined,
+        industryId: activeFilters.industry
+          ? Number(activeFilters.industry)
+          : undefined,
+      });
+
+      setBusinesses(results.map(toBusinessCard));
+    } catch (error) {
+      setBusinesses([]);
+      setBusinessesError(
+        error instanceof Error ? error.message : "Failed to load businesses"
+      );
+    } finally {
+      setIsSearchingBusinesses(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!isCustomer) return;
+
+    const initialFilters: AppointmentFilters = {
+      industry: "",
+      location: "All locations",
+      searchName: "",
+    };
+
+    setSubmittedFilters(initialFilters);
+    setIndustry(initialFilters.industry);
+    setLocationFilter(initialFilters.location);
+    setSearchName(initialFilters.searchName);
+    runBusinessSearch(initialFilters);
+  }, [isCustomer]);
+
+  useEffect(() => {
+    async function loadServices() {
+      if (!selectedBusiness || currentStep !== 2) {
+        setServicesForSelectedBusiness([]);
+        setServicesError("");
+        return;
+      }
+
+      setIsLoadingServices(true);
+      setServicesError("");
+
+      try {
+        const results = await listServices(selectedBusiness.id, true);
+        setServicesForSelectedBusiness(results.map(toServiceItem));
+      } catch (error) {
+        setServicesForSelectedBusiness([]);
+        setServicesError(
+          error instanceof Error ? error.message : "Failed to load services"
+        );
+      } finally {
+        setIsLoadingServices(false);
+      }
+    }
+
+    loadServices();
+  }, [selectedBusiness, currentStep]);
 
   useEffect(() => {
     if (currentStep !== 3) return;
@@ -337,11 +391,14 @@ export default function CreateAppointmentPage() {
   ]);
 
   function onSearch() {
-    setSubmittedFilters({
+    const nextFilters: AppointmentFilters = {
       industry,
       location: locationFilter,
       searchName,
-    });
+    };
+
+    setSubmittedFilters(nextFilters);
+    runBusinessSearch(nextFilters);
   }
 
   function onViewServices(business: BusinessCard) {
@@ -350,6 +407,7 @@ export default function CreateAppointmentPage() {
     setSelectedStaffId("");
     setSelectedTime("");
     setAvailableTimeSlots([]);
+    setServicesForSelectedBusiness([]);
     setCurrentStep(2);
   }
 
@@ -494,8 +552,8 @@ export default function CreateAppointmentPage() {
                   onChange={(e) => setIndustry(e.target.value)}
                 >
                   {INDUSTRY_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -532,18 +590,25 @@ export default function CreateAppointmentPage() {
                 type="button"
                 className="create-appointment-search-btn"
                 onClick={onSearch}
+                disabled={isSearchingBusinesses}
               >
-                Search
+                {isSearchingBusinesses ? "Searching..." : "Search"}
               </button>
             </div>
 
             <div className="create-appointment-results">
-              {filteredBusinesses.length === 0 ? (
+              {businessesError ? (
+                <div className="create-appointment-empty">{businessesError}</div>
+              ) : isSearchingBusinesses ? (
+                <div className="create-appointment-empty">
+                  Searching businesses...
+                </div>
+              ) : businesses.length === 0 ? (
                 <div className="create-appointment-empty">
                   No businesses found for the selected filters.
                 </div>
               ) : (
-                filteredBusinesses.map((business) => (
+                businesses.map((business) => (
                   <div key={business.id} className="business-card">
                     <div className="business-card-header">
                       <div className="business-card-logo">✂</div>
@@ -590,26 +655,42 @@ export default function CreateAppointmentPage() {
           <>
             <h2 className="create-appointment-section-title">Choose Service</h2>
 
-            <div className="service-grid">
-              {servicesForSelectedBusiness.map((service) => (
-                <button
-                  key={service.id}
-                  type="button"
-                  className={
-                    selectedService?.id === service.id
-                      ? "service-card service-card--selected"
-                      : "service-card"
-                  }
-                  onClick={() => setSelectedService(service)}
-                >
-                  <div className="service-card-title">{service.name}</div>
-                  <div className="service-card-text">
-                    Duration: {service.durationMinutes} minutes
-                  </div>
-                  <div className="service-card-price">{service.price} euros</div>
-                </button>
-              ))}
-            </div>
+            {selectedBusiness && (
+              <div className="create-appointment-selected-business">
+                Business: <strong>{selectedBusiness.name}</strong>
+              </div>
+            )}
+
+            {servicesError ? (
+              <div className="create-appointment-empty">{servicesError}</div>
+            ) : isLoadingServices ? (
+              <div className="create-appointment-empty">Loading services...</div>
+            ) : servicesForSelectedBusiness.length === 0 ? (
+              <div className="create-appointment-empty">
+                No active services found for this business.
+              </div>
+            ) : (
+              <div className="service-grid">
+                {servicesForSelectedBusiness.map((service) => (
+                  <button
+                    key={service.id}
+                    type="button"
+                    className={
+                      selectedService?.id === service.id
+                        ? "service-card service-card--selected"
+                        : "service-card"
+                    }
+                    onClick={() => setSelectedService(service)}
+                  >
+                    <div className="service-card-title">{service.name}</div>
+                    <div className="service-card-text">
+                      Duration: {service.durationMinutes} minutes
+                    </div>
+                    <div className="service-card-price">{service.price} euros</div>
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="create-appointment-actions">
               <button
@@ -624,7 +705,7 @@ export default function CreateAppointmentPage() {
                 type="button"
                 className="create-appointment-primary-btn"
                 onClick={onContinueFromService}
-                disabled={!selectedService}
+                disabled={!selectedService || isLoadingServices}
               >
                 Continue
               </button>
@@ -655,10 +736,14 @@ export default function CreateAppointmentPage() {
                   <div className="simple-calendar-grid">
                     {monthGrid.map((cell, index) => {
                       const cellDate =
-                        cell === null ? null : new Date(calendarYear, calendarMonthIndex, cell);
+                        cell === null
+                          ? null
+                          : new Date(calendarYear, calendarMonthIndex, cell);
 
-                      const isSelected = cellDate !== null && isSameDay(selectedDate, cellDate);
-                      const isToday = cellDate !== null && isSameDay(today, cellDate);
+                      const isSelected =
+                        cellDate !== null && isSameDay(selectedDate, cellDate);
+                      const isToday =
+                        cellDate !== null && isSameDay(today, cellDate);
 
                       return (
                         <button
@@ -701,30 +786,34 @@ export default function CreateAppointmentPage() {
                     </div>
                   )}
 
-                  {selectedStaffId && !isLoadingSlots && availableTimeSlots.length === 0 && (
-                    <div className="create-appointment-empty">
-                      No available time slots for the selected date.
-                    </div>
-                  )}
+                  {selectedStaffId &&
+                    !isLoadingSlots &&
+                    availableTimeSlots.length === 0 && (
+                      <div className="create-appointment-empty">
+                        No available time slots for the selected date.
+                      </div>
+                    )}
 
-                  {selectedStaffId && !isLoadingSlots && availableTimeSlots.length > 0 && (
-                    <div className="time-slot-grid">
-                      {availableTimeSlots.map((slot) => (
-                        <button
-                          key={slot}
-                          type="button"
-                          className={
-                            selectedTime === slot
-                              ? "time-slot-btn time-slot-btn--selected"
-                              : "time-slot-btn"
-                          }
-                          onClick={() => setSelectedTime(slot)}
-                        >
-                          {slot}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {selectedStaffId &&
+                    !isLoadingSlots &&
+                    availableTimeSlots.length > 0 && (
+                      <div className="time-slot-grid">
+                        {availableTimeSlots.map((slot) => (
+                          <button
+                            key={slot}
+                            type="button"
+                            className={
+                              selectedTime === slot
+                                ? "time-slot-btn time-slot-btn--selected"
+                                : "time-slot-btn"
+                            }
+                            onClick={() => setSelectedTime(slot)}
+                          >
+                            {slot}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                 </div>
               </div>
 
@@ -838,7 +927,9 @@ export default function CreateAppointmentPage() {
                 <h2 className="create-appointment-section-title">Summary</h2>
 
                 <div className="summary-card">
-                  <div className="summary-card-title">{selectedService?.name || "-"}</div>
+                  <div className="summary-card-title">
+                    {selectedService?.name || "-"}
+                  </div>
                   <div className="summary-card-text">
                     Duration: {selectedService?.durationMinutes ?? "-"} minutes
                   </div>
