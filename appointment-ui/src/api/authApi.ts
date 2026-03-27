@@ -41,6 +41,7 @@ export type AuthResponse = {
   lastName: string;
   role: string;
   message: string;
+  businessId: number;
 };
 
 const BASE_URL = "http://localhost:8080/api/auth";

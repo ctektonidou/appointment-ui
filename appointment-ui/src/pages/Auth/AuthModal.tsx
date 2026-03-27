@@ -22,6 +22,7 @@ type AuthUser = {
   firstName: string;
   lastName: string;
   role: string;
+  businessId?: number | null;
 };
 
 function saveAuthUser(user: AuthUser) {
@@ -29,6 +30,7 @@ function saveAuthUser(user: AuthUser) {
   localStorage.setItem("userId", String(user.id));
   localStorage.setItem("userRole", user.role);
   localStorage.setItem("userEmail", user.email);
+  localStorage.setItem("businessId", String(user.businessId));
 }
 
 export default function AuthModal({ role, onClose }: AuthModalProps) {
@@ -100,6 +102,7 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         firstName: response.firstName,
         lastName: response.lastName,
         role: response.role,
+        businessId: response.businessId
       });
 
       setSuccessMessage("Login successful");
@@ -133,6 +136,7 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         firstName: response.firstName,
         lastName: response.lastName,
         role: response.role,
+        businessId: response.businessId
       });
 
       setSuccessMessage("Signup successful");
@@ -163,6 +167,7 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         firstName: response.firstName,
         lastName: response.lastName,
         role: response.role,
+        businessId: response.businessId
       });
 
       setSuccessMessage("Login successful");
@@ -198,6 +203,7 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         firstName: response.firstName,
         lastName: response.lastName,
         role: response.role,
+        businessId: response.businessId
       });
 
       setSuccessMessage("Signup successful");
@@ -228,6 +234,7 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         firstName: response.firstName,
         lastName: response.lastName,
         role: response.role,
+        businessId: response.businessId
       });
 
       setSuccessMessage("Login successful");
@@ -267,6 +274,7 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         firstName: response.firstName,
         lastName: response.lastName,
         role: response.role,
+        businessId: response.businessId
       });
 
       setSuccessMessage("Signup successful");

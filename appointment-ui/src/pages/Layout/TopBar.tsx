@@ -10,6 +10,7 @@ type AuthUser = {
   firstName: string;
   lastName: string;
   role: string;
+  businessId?: number | null;
 };
 
 function getPageTitle(pathname: string): string {
@@ -55,6 +56,7 @@ export default function TopBar() {
     localStorage.removeItem("userId");
     localStorage.removeItem("userRole");
     localStorage.removeItem("userEmail");
+    localStorage.removeItem("businessId");
     setMenuOpen(false);
     navigate("/");
     window.location.reload();

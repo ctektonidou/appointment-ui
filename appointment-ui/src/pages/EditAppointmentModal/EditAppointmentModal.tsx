@@ -3,7 +3,7 @@ import "./EditAppointmentModal.css";
 
 type UserRole = "owner" | "staff" | "customer";
 
-export type AppointmentStatus = "ACTIVE" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
+export type AppointmentStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
 
 export type Appointment = {
   id: number;
@@ -41,7 +41,7 @@ type Props = {
 };
 
 const STATUS_OPTIONS: AppointmentStatus[] = [
-  "ACTIVE",
+  "SCHEDULED",
   "COMPLETED",
   "CANCELLED",
   "NO_SHOW",

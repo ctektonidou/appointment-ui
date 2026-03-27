@@ -1,38 +1,80 @@
 import { useEffect, useMemo, useState } from "react";
 import "./AvailabilityPage.css";
 
-type UserRole = "owner" | "staff" | "customer";
-type AvailabilityTopTab = "businessHours" | "availability" | "blockedDays";
-type DayKey = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
+import BusinessHoursTab from "./components/BusinessHoursTab";
+import WeeklyAvailabilityTab from "./components/WeeklyAvailabilityTab";
+import BlockedDaysTab from "./components/BlockedDaysTab";
+import AvailabilityOverridesTab from "./components/AvailabilityOverridesTab";
 
-type TimeRange = {
-  id: number;
-  from: string;
-  to: string;
+import type {
+  AvailabilityTopTab,
+  BlockedDate,
+  BusinessHoursDay,
+  DayKey,
+  StaffAvailability,
+} from "./Availability.types";
+
+import {
+  BASE_STAFF,
+  DAYS,
+  cloneStaffList,
+  getDaysInMonth,
+  getFirstDayOfMonth,
+  getMonthName,
+  getStoredUserId,
+  getStoredUserRole,
+  newId,
+  toDateString,
+} from "./Availability.utils";
+
+import {
+  createBusinessBlockedDate,
+  deleteBusinessBlockedDate,
+  getBusinessBlockedDates,
+  type BlockedDateResponse,
+} from "../../api/blockedDates";
+
+import {
+  getBusinessHours,
+  saveBusinessHours,
+  type BusinessHoursDto,
+} from "../../api/businessHours";
+
+function getStoredBusinessId(): number | null {
+  const raw = localStorage.getItem("businessId");
+  if (!raw) return null;
+
+  const parsed = Number(raw);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function mapBlockedDateResponse(item: BlockedDateResponse): BlockedDate {
+  return {
+    id: item.id,
+    date: item.date,
+    reason: item.reason ?? "",
+  };
+}
+
+const DAY_TO_NUMBER: Record<DayKey, number> = {
+  Mon: 0,
+  Tue: 1,
+  Wed: 2,
+  Thu: 3,
+  Fri: 4,
+  Sat: 5,
+  Sun: 6,
 };
 
-type StaffAvailability = {
-  staffId: number;
-  staffName: string;
-  enabled: boolean;
-  ranges: TimeRange[];
+const NUMBER_TO_DAY: Record<number, DayKey> = {
+  0: "Mon",
+  1: "Tue",
+  2: "Wed",
+  3: "Thu",
+  4: "Fri",
+  5: "Sat",
+  6: "Sun",
 };
-
-type BusinessHoursDay = {
-  day: DayKey;
-  label: string;
-  enabled: boolean;
-  from: string;
-  to: string;
-};
-
-type BlockedDate = {
-  id: number;
-  date: string; // yyyy-mm-dd
-  reason: string;
-};
-
-const DAYS: DayKey[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const DAY_LABELS: Record<DayKey, string> = {
   Mon: "Monday",
@@ -44,98 +86,42 @@ const DAY_LABELS: Record<DayKey, string> = {
   Sun: "Sunday",
 };
 
-function getStoredUserRole(): UserRole {
-  const storedRole = localStorage.getItem("userRole");
-
-  if (storedRole === "business" || storedRole === "owner") return "owner";
-  if (storedRole === "staff") return "staff";
-  return "customer";
+function normalizeTime(value: string | null | undefined, fallback: string) {
+  if (!value) return fallback;
+  return value.slice(0, 5);
 }
 
-function getStoredUserId(): number | null {
-  const storedUserId = localStorage.getItem("userId");
-  if (!storedUserId) return null;
+function mapBusinessHoursDtoToUi(dto: BusinessHoursDto): BusinessHoursDay {
+  const dayKey = NUMBER_TO_DAY[dto.dayOfWeek];
 
-  const parsed = Number(storedUserId);
-  return Number.isNaN(parsed) ? null : parsed;
+  return {
+    day: dayKey,
+    label: DAY_LABELS[dayKey],
+    enabled: dto.isOpen,
+    from: normalizeTime(dto.openTime, "09:00"),
+    to: normalizeTime(dto.closeTime, "17:00"),
+  };
 }
 
-function buildTimeOptions(startHour = 8, endHour = 21, stepMinutes = 30): string[] {
-  const out: string[] = [];
-  for (let h = startHour; h <= endHour; h++) {
-    for (let m = 0; m < 60; m += stepMinutes) {
-      if (h === endHour && m > 0) continue;
-      const hh = String(h).padStart(2, "0");
-      const mm = String(m).padStart(2, "0");
-      out.push(`${hh}:${mm}`);
-    }
-  }
-  return out;
+function buildDefaultBusinessHours(): BusinessHoursDay[] {
+  return [
+    { day: "Mon", label: "Monday", enabled: true, from: "09:00", to: "17:00" },
+    { day: "Tue", label: "Tuesday", enabled: true, from: "09:00", to: "17:00" },
+    { day: "Wed", label: "Wednesday", enabled: true, from: "09:00", to: "17:00" },
+    { day: "Thu", label: "Thursday", enabled: true, from: "09:00", to: "17:00" },
+    { day: "Fri", label: "Friday", enabled: true, from: "09:00", to: "17:00" },
+    { day: "Sat", label: "Saturday", enabled: false, from: "09:00", to: "17:00" },
+    { day: "Sun", label: "Sunday", enabled: false, from: "09:00", to: "17:00" },
+  ];
 }
 
-const TIME_OPTIONS = buildTimeOptions(8, 21, 30);
-
-function newId() {
-  return Date.now() + Math.floor(Math.random() * 100000);
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatBlockedTableDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-  });
-}
-
-function getMonthName(year: number, monthIndex: number) {
-  return new Date(year, monthIndex, 1).toLocaleDateString("en-GB", {
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function getDaysInMonth(year: number, monthIndex: number) {
-  return new Date(year, monthIndex + 1, 0).getDate();
-}
-
-function getFirstDayOfMonth(year: number, monthIndex: number) {
-  const jsDay = new Date(year, monthIndex, 1).getDay();
-  return jsDay === 0 ? 6 : jsDay - 1;
-}
-
-function pad2(value: number) {
-  return String(value).padStart(2, "0");
-}
-
-function toDateString(year: number, monthIndex: number, day: number) {
-  return `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`;
-}
-
-// Demo staff list
-const BASE_STAFF: StaffAvailability[] = [
-  { staffId: 1, staffName: "Josh Smith", enabled: true, ranges: [{ id: 1, from: "09:00", to: "17:00" }] },
-  { staffId: 2, staffName: "Anna Peter", enabled: true, ranges: [{ id: 1, from: "10:00", to: "18:00" }] },
-  { staffId: 3, staffName: "Smith Green", enabled: true, ranges: [{ id: 1, from: "09:00", to: "15:00" }] },
-  { staffId: 4, staffName: "Lena Nock", enabled: true, ranges: [{ id: 1, from: "12:00", to: "20:00" }] },
-  { staffId: 5, staffName: "Finn Miam", enabled: false, ranges: [{ id: 1, from: "09:00", to: "17:00" }] },
-  { staffId: 6, staffName: "Liam Payne", enabled: true, ranges: [{ id: 1, from: "09:00", to: "17:00" }] },
-  { staffId: 7, staffName: "Louis Tim", enabled: false, ranges: [{ id: 1, from: "09:00", to: "17:00" }] },
-];
-
-function cloneStaffList(source: StaffAvailability[]) {
-  return source.map((s) => ({
-    ...s,
-    ranges: s.ranges.map((r) => ({ ...r, id: newId() })),
-  }));
+function mapUiBusinessHoursToDto(item: BusinessHoursDay): BusinessHoursDto {
+  return {
+    dayOfWeek: DAY_TO_NUMBER[item.day],
+    isOpen: item.enabled,
+    openTime: item.enabled ? `${item.from}:00` : null,
+    closeTime: item.enabled ? `${item.to}:00` : null,
+  };
 }
 
 export default function AvailabilityPage() {
@@ -143,11 +129,18 @@ export default function AvailabilityPage() {
   const isOwner = role === "owner";
   const isStaff = role === "staff";
   const loggedInStaffId = getStoredUserId();
+  const businessId = getStoredBusinessId();
 
   const [topTab, setTopTab] = useState<AvailabilityTopTab>(
     isStaff ? "availability" : "businessHours"
   );
   const [dayTab, setDayTab] = useState<DayKey>("Mon");
+
+  useEffect(() => {
+    if (isStaff && (topTab === "businessHours" || topTab === "blockedDays")) {
+      setTopTab("availability");
+    }
+  }, [isStaff, topTab]);
 
   function canEditStaffRow(staffId: number) {
     if (isOwner) return true;
@@ -155,21 +148,54 @@ export default function AvailabilityPage() {
     return false;
   }
 
-  useEffect(() => {
-    if (isStaff && topTab !== "availability") {
-      setTopTab("availability");
-    }
-  }, [isStaff, topTab]);
+  const [businessHours, setBusinessHours] = useState<BusinessHoursDay[]>(
+    buildDefaultBusinessHours()
+  );
+  const [businessHoursLoading, setBusinessHoursLoading] = useState(false);
+  const [businessHoursSaving, setBusinessHoursSaving] = useState(false);
+  const [businessHoursError, setBusinessHoursError] = useState("");
 
-  const [businessHours, setBusinessHours] = useState<BusinessHoursDay[]>([
-    { day: "Mon", label: "Monday", enabled: true, from: "09:00", to: "17:00" },
-    { day: "Tue", label: "Tuesday", enabled: true, from: "09:00", to: "17:00" },
-    { day: "Wed", label: "Wednesday", enabled: false, from: "09:00", to: "17:00" },
-    { day: "Thu", label: "Thursday", enabled: true, from: "09:00", to: "17:00" },
-    { day: "Fri", label: "Friday", enabled: true, from: "09:00", to: "17:00" },
-    { day: "Sat", label: "Saturday", enabled: true, from: "09:00", to: "17:00" },
-    { day: "Sun", label: "Sunday", enabled: false, from: "09:00", to: "17:00" },
-  ]);
+  async function loadBusinessHours() {
+    if (!isOwner) return;
+
+    if (!businessId) {
+      setBusinessHoursError(
+        "Business id was not found. Store businessId at login or provide an owner-business lookup endpoint."
+      );
+      setBusinessHours(buildDefaultBusinessHours());
+      return;
+    }
+
+    setBusinessHoursLoading(true);
+    setBusinessHoursError("");
+
+    try {
+      const data = await getBusinessHours(businessId);
+
+      if (!data.length) {
+        setBusinessHours(buildDefaultBusinessHours());
+      } else {
+        const mapped = data
+          .map(mapBusinessHoursDtoToUi)
+          .sort((a, b) => DAY_TO_NUMBER[a.day] - DAY_TO_NUMBER[b.day]);
+
+        setBusinessHours(mapped);
+      }
+    } catch (err) {
+      setBusinessHours(buildDefaultBusinessHours());
+      setBusinessHoursError(
+        err instanceof Error ? err.message : "Failed to load business hours."
+      );
+    } finally {
+      setBusinessHoursLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (isOwner && topTab === "businessHours") {
+      loadBusinessHours();
+    }
+  }, [isOwner, topTab, businessId]);
 
   function toggleBusinessDay(day: DayKey) {
     if (!isOwner) return;
@@ -187,7 +213,9 @@ export default function AvailabilityPage() {
     );
   }
 
-  const [staffAvailabilityByDay, setStaffAvailabilityByDay] = useState<Record<DayKey, StaffAvailability[]>>({
+  const [staffAvailabilityByDay, setStaffAvailabilityByDay] = useState<
+    Record<DayKey, StaffAvailability[]>
+  >({
     Mon: cloneStaffList(BASE_STAFF),
     Tue: cloneStaffList(BASE_STAFF),
     Wed: cloneStaffList(BASE_STAFF),
@@ -262,16 +290,13 @@ export default function AvailabilityPage() {
     }));
   }
 
-  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([
-    { id: 1, date: "2025-12-26", reason: "Christmas 2nd day" },
-    { id: 2, date: "2025-12-25", reason: "Christmas 1st day" },
-    { id: 3, date: "2026-01-01", reason: "New Year" },
-    { id: 4, date: "2025-09-10", reason: "" },
-    { id: 5, date: "2025-09-21", reason: "" },
-  ]);
+  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
+  const [blockedLoading, setBlockedLoading] = useState(false);
+  const [blockedSaving, setBlockedSaving] = useState(false);
+  const [blockedError, setBlockedError] = useState("");
 
   const [calendarYear, setCalendarYear] = useState(2025);
-  const [calendarMonth, setCalendarMonth] = useState(8); // September
+  const [calendarMonth, setCalendarMonth] = useState(8);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
 
   const [isAddBlockedModalOpen, setIsAddBlockedModalOpen] = useState(false);
@@ -281,6 +306,45 @@ export default function AvailabilityPage() {
   const [modalBlockedDay, setModalBlockedDay] = useState("");
   const [modalBlockedMonth, setModalBlockedMonth] = useState("");
   const [modalBlockedReason, setModalBlockedReason] = useState("");
+
+  async function loadBlockedDates() {
+    if (!isOwner) return;
+
+    if (!businessId) {
+      setBlockedError(
+        "Business id was not found. Store businessId at login or provide an owner-business lookup endpoint."
+      );
+      setBlockedDates([]);
+      return;
+    }
+
+    setBlockedLoading(true);
+    setBlockedError("");
+
+    try {
+      const data = await getBusinessBlockedDates(businessId);
+      const businessWideOnly = data.filter((item) => item.staffId == null);
+
+      setBlockedDates(
+        businessWideOnly
+          .map(mapBlockedDateResponse)
+          .sort((a, b) => a.date.localeCompare(b.date))
+      );
+    } catch (err) {
+      setBlockedDates([]);
+      setBlockedError(
+        err instanceof Error ? err.message : "Failed to load blocked dates."
+      );
+    } finally {
+      setBlockedLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (isOwner && topTab === "blockedDays") {
+      loadBlockedDates();
+    }
+  }, [isOwner, topTab, businessId]);
 
   function openAddBlockedModal() {
     if (!isOwner) return;
@@ -295,8 +359,14 @@ export default function AvailabilityPage() {
     setIsAddBlockedModalOpen(false);
   }
 
-  function addBlockedDate() {
-    if (!isOwner) return;
+  async function addBlockedDate() {
+    if (!isOwner || !businessId) {
+      setBlockedError(
+        "Business id was not found. Store businessId at login or provide an owner-business lookup endpoint."
+      );
+      return;
+    }
+
     if (!modalBlockedDay || modalBlockedMonth === "") return;
 
     const monthIndex = Number(modalBlockedMonth);
@@ -306,16 +376,27 @@ export default function AvailabilityPage() {
 
     const dateStr = toDateString(calendarYear, monthIndex, day);
 
-    const newItem: BlockedDate = {
-      id: newId(),
-      date: dateStr,
-      reason: modalBlockedReason.trim(),
-    };
+    setBlockedSaving(true);
+    setBlockedError("");
 
-    setBlockedDates((prev) => [...prev, newItem].sort((a, b) => a.date.localeCompare(b.date)));
-    setCalendarMonth(monthIndex);
-    setSelectedCalendarDate(dateStr);
-    closeAddBlockedModal();
+    try {
+      await createBusinessBlockedDate(businessId, {
+        staffId: null,
+        date: dateStr,
+        reason: modalBlockedReason.trim() || null,
+      });
+
+      setCalendarMonth(monthIndex);
+      setSelectedCalendarDate(dateStr);
+      closeAddBlockedModal();
+      await loadBlockedDates();
+    } catch (err) {
+      setBlockedError(
+        err instanceof Error ? err.message : "Failed to add blocked date."
+      );
+    } finally {
+      setBlockedSaving(false);
+    }
   }
 
   function askDeleteBlockedDate(item: BlockedDate) {
@@ -330,16 +411,35 @@ export default function AvailabilityPage() {
     setIsDeleteBlockedModalOpen(false);
   }
 
-  function confirmDeleteBlockedDate() {
+  async function confirmDeleteBlockedDate() {
     if (!isOwner || !blockedDateToDelete) return;
 
-    setBlockedDates((prev) => prev.filter((item) => item.id !== blockedDateToDelete.id));
-
-    if (selectedCalendarDate === blockedDateToDelete.date) {
-      setSelectedCalendarDate(null);
+    if (!businessId) {
+      setBlockedError(
+        "Business id was not found. Store businessId at login or provide an owner-business lookup endpoint."
+      );
+      return;
     }
 
-    closeDeleteBlockedModal();
+    setBlockedSaving(true);
+    setBlockedError("");
+
+    try {
+      await deleteBusinessBlockedDate(businessId, blockedDateToDelete.id);
+
+      if (selectedCalendarDate === blockedDateToDelete.date) {
+        setSelectedCalendarDate(null);
+      }
+
+      closeDeleteBlockedModal();
+      await loadBlockedDates();
+    } catch (err) {
+      setBlockedError(
+        err instanceof Error ? err.message : "Failed to delete blocked date."
+      );
+    } finally {
+      setBlockedSaving(false);
+    }
   }
 
   function goToPreviousMonth() {
@@ -382,7 +482,7 @@ export default function AvailabilityPage() {
 
   const monthOptions = Array.from({ length: 12 }, (_, i) => ({
     value: String(i),
-    label: new Date(2025, i, 1).toLocaleDateString("en-GB", { month: "long" }),
+    label: getMonthName(2025, i).split(" ")[0],
   }));
 
   const dayOptions =
@@ -397,7 +497,41 @@ export default function AvailabilityPage() {
     blockedDatesForSelectedMonth.map((item) => Number(item.date.slice(8, 10)))
   );
 
-  function onSaveChanges() {
+  async function onSaveChanges() {
+    if (topTab === "businessHours") {
+      if (!isOwner || !businessId) {
+        setBusinessHoursError(
+          "Business id was not found. Store businessId at login or provide an owner-business lookup endpoint."
+        );
+        return;
+      }
+
+      setBusinessHoursSaving(true);
+      setBusinessHoursError("");
+
+      try {
+        const saved = await saveBusinessHours(
+          businessId,
+          businessHours.map(mapUiBusinessHoursToDto)
+        );
+
+        const mapped = saved
+          .map(mapBusinessHoursDtoToUi)
+          .sort((a, b) => DAY_TO_NUMBER[a.day] - DAY_TO_NUMBER[b.day]);
+
+        setBusinessHours(mapped);
+        alert("Business hours saved ✅");
+      } catch (err) {
+        setBusinessHoursError(
+          err instanceof Error ? err.message : "Failed to save business hours."
+        );
+      } finally {
+        setBusinessHoursSaving(false);
+      }
+
+      return;
+    }
+
     console.log("SAVE", {
       topTab,
       businessHours,
@@ -454,6 +588,18 @@ export default function AvailabilityPage() {
           Availability
         </button>
 
+        <button
+          type="button"
+          className={
+            topTab === "availabilityOverrides"
+              ? "availability-top-tab availability-top-tab--active"
+              : "availability-top-tab"
+          }
+          onClick={() => setTopTab("availabilityOverrides")}
+        >
+          Availability Overrides
+        </button>
+
         {isOwner && (
           <button
             type="button"
@@ -471,433 +617,77 @@ export default function AvailabilityPage() {
 
       <section className="availability-card">
         {isOwner && topTab === "businessHours" && (
-          <>
-            <div className="availability-grid-header availability-grid-header--business-hours">
-              <div className="availability-col availability-col--staff" />
-              <div className="availability-col availability-col--toggle" />
-              <div className="availability-col availability-col--from">FROM</div>
-              <div className="availability-col availability-col--to">TO</div>
-            </div>
-
-            <div className="availability-rows">
-              {businessHours.map((day) => (
-                <div key={day.day} className="availability-row availability-row--business-hours">
-                  <div className="availability-staff-name">{day.label}</div>
-
-                  <div className="availability-toggle">
-                    <label className="toggle">
-                      <input
-                        type="checkbox"
-                        checked={day.enabled}
-                        onChange={() => toggleBusinessDay(day.day)}
-                      />
-                      <span className="toggle-slider" />
-                    </label>
-                  </div>
-
-                  <div className="availability-range availability-range--business-hours">
-                    <select
-                      className="availability-select"
-                      value={day.from}
-                      disabled={!day.enabled}
-                      onChange={(e) => updateBusinessHours(day.day, "from", e.target.value)}
-                    >
-                      {TIME_OPTIONS.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      className="availability-select"
-                      value={day.to}
-                      disabled={!day.enabled}
-                      onChange={(e) => updateBusinessHours(day.day, "to", e.target.value)}
-                    >
-                      {TIME_OPTIONS.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
+          <BusinessHoursTab
+            businessHours={businessHours}
+            loading={businessHoursLoading}
+            saving={businessHoursSaving}
+            error={businessHoursError}
+            onToggleBusinessDay={toggleBusinessDay}
+            onUpdateBusinessHours={updateBusinessHours}
+          />
         )}
 
         {topTab === "availability" && (
-          <>
-            <div className="availability-day-tabs">
-              {DAYS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  className={
-                    dayTab === d
-                      ? "availability-day-tab availability-day-tab--active"
-                      : "availability-day-tab"
-                  }
-                  onClick={() => setDayTab(d)}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-
-            <div className="availability-grid-header">
-              <div className="availability-col availability-col--staff">STAFF</div>
-              <div className="availability-col availability-col--toggle" />
-              <div className="availability-col availability-col--from">FROM</div>
-              <div className="availability-col availability-col--to">TO</div>
-              <div className="availability-col availability-col--actions" />
-            </div>
-
-            <div className="availability-rows">
-              {staffAvailability.map((s) => {
-                const rowEditable = canEditStaffRow(s.staffId);
-
-                return (
-                  <div
-                    key={s.staffId}
-                    className={
-                      rowEditable
-                        ? "availability-row"
-                        : "availability-row availability-row--disabled"
-                    }
-                  >
-                    <div className="availability-staff-name">
-                      {s.staffName}
-                      {isStaff && s.staffId === loggedInStaffId && (
-                        <span className="availability-me-badge">You</span>
-                      )}
-                    </div>
-
-                    <div className="availability-toggle">
-                      <label className="toggle">
-                        <input
-                          type="checkbox"
-                          checked={s.enabled}
-                          disabled={!rowEditable}
-                          onChange={() => toggleStaffEnabled(s.staffId)}
-                        />
-                        <span className="toggle-slider" />
-                      </label>
-                    </div>
-
-                    <div className="availability-ranges">
-                      {s.ranges.map((r, idx) => (
-                        <div key={r.id} className="availability-range">
-                          <select
-                            className="availability-select"
-                            value={r.from}
-                            disabled={!s.enabled || !rowEditable}
-                            onChange={(e) => updateRange(s.staffId, r.id, "from", e.target.value)}
-                          >
-                            {TIME_OPTIONS.map((t) => (
-                              <option key={t} value={t}>
-                                {t}
-                              </option>
-                            ))}
-                          </select>
-
-                          <select
-                            className="availability-select"
-                            value={r.to}
-                            disabled={!s.enabled || !rowEditable}
-                            onChange={(e) => updateRange(s.staffId, r.id, "to", e.target.value)}
-                          >
-                            {TIME_OPTIONS.map((t) => (
-                              <option key={t} value={t}>
-                                {t}
-                              </option>
-                            ))}
-                          </select>
-
-                          {s.ranges.length > 1 && (
-                            <button
-                              type="button"
-                              className="availability-icon-btn availability-icon-btn--danger"
-                              title="Remove"
-                              onClick={() => removeRange(s.staffId, r.id)}
-                              disabled={!rowEditable}
-                            >
-                              🗑
-                            </button>
-                          )}
-
-                          {idx === s.ranges.length - 1 && (
-                            <button
-                              type="button"
-                              className="availability-icon-btn"
-                              title="Add"
-                              onClick={() => addRange(s.staffId)}
-                              disabled={!s.enabled || !rowEditable}
-                            >
-                              +
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
+          <WeeklyAvailabilityTab
+            days={DAYS}
+            dayTab={dayTab}
+            onChangeDayTab={setDayTab}
+            staffAvailability={staffAvailability}
+            isStaff={isStaff}
+            loggedInStaffId={loggedInStaffId}
+            canEditStaffRow={canEditStaffRow}
+            onToggleStaffEnabled={toggleStaffEnabled}
+            onAddRange={addRange}
+            onRemoveRange={removeRange}
+            onUpdateRange={updateRange}
+          />
         )}
 
+        {topTab === "availabilityOverrides" && <AvailabilityOverridesTab />}
+
         {isOwner && topTab === "blockedDays" && (
-          <>
-            <div className="blocked-top">
-              <div className="blocked-month-switch">
-                <button type="button" className="month-nav-btn" onClick={goToPreviousMonth}>
-                  ‹
-                </button>
-
-                <div className="blocked-month-title">
-                  {getMonthName(calendarYear, calendarMonth)}
-                </div>
-
-                <button type="button" className="month-nav-btn" onClick={goToNextMonth}>
-                  ›
-                </button>
-              </div>
-            </div>
-
-            <div className="blocked-layout">
-              <div className="blocked-calendar">
-                <div className="blocked-weekdays">
-                  {["M", "T", "W", "T", "F", "S", "S"].map((day, idx) => (
-                    <div key={`${day}-${idx}`} className="blocked-weekday">
-                      {day}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="blocked-days-grid">
-                  {Array.from({ length: firstDayOffset }).map((_, idx) => (
-                    <div
-                      key={`empty-${idx}`}
-                      className="blocked-day-cell blocked-day-cell--empty"
-                    />
-                  ))}
-
-                  {Array.from({ length: daysInMonth }, (_, idx) => {
-                    const day = idx + 1;
-                    const dateStr = toDateString(calendarYear, calendarMonth, day);
-                    const isSelected = selectedCalendarDate === dateStr;
-                    const hasBlockedDate = blockedDateMap.has(day);
-
-                    return (
-                      <button
-                        key={dateStr}
-                        type="button"
-                        className={[
-                          "blocked-day-cell",
-                          isSelected ? "blocked-day-cell--selected" : "",
-                          hasBlockedDate ? "blocked-day-cell--has" : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        onClick={() => setSelectedCalendarDate(dateStr)}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="blocked-table-wrapper">
-                <div className="blocked-section-head">
-                  <div className="blocked-section-title">Blocked Days</div>
-
-                  <button
-                    type="button"
-                    className="availability-btn-link"
-                    onClick={openAddBlockedModal}
-                  >
-                    Add Date
-                  </button>
-                </div>
-
-                <table className="blocked-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Reason</th>
-                      <th />
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {blockedRowsToShow.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="blocked-empty-cell">
-                          No blocked dates found.
-                        </td>
-                      </tr>
-                    ) : (
-                      blockedRowsToShow.map((item) => (
-                        <tr key={item.id}>
-                          <td>{formatBlockedTableDate(item.date)}</td>
-                          <td>{item.reason || "-"}</td>
-                          <td className="blocked-actions-cell">
-                            <button
-                              type="button"
-                              className="blocked-delete-icon-btn"
-                              onClick={() => askDeleteBlockedDate(item)}
-                              title="Delete"
-                            >
-                              🗑
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {isAddBlockedModalOpen && (
-              <div className="blocked-modal-overlay">
-                <div className="blocked-modal">
-                  <div className="blocked-modal-header">
-                    <div className="blocked-modal-title">Add Blocked Date</div>
-                    <button
-                      type="button"
-                      className="blocked-modal-close"
-                      onClick={closeAddBlockedModal}
-                    >
-                      ×
-                    </button>
-                  </div>
-
-                  <div className="blocked-modal-body">
-                    <div className="blocked-modal-row">
-                      <div className="blocked-modal-field">
-                        <label className="blocked-modal-label">Day</label>
-                        <select
-                          className="blocked-modal-input"
-                          value={modalBlockedDay}
-                          onChange={(e) => setModalBlockedDay(e.target.value)}
-                        >
-                          <option value="">Select day</option>
-                          {dayOptions.map((day) => (
-                            <option key={day} value={day}>
-                              {day}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="blocked-modal-field">
-                        <label className="blocked-modal-label">Month</label>
-                        <select
-                          className="blocked-modal-input"
-                          value={modalBlockedMonth}
-                          onChange={(e) => {
-                            setModalBlockedMonth(e.target.value);
-                            setModalBlockedDay("");
-                          }}
-                        >
-                          <option value="">Select month</option>
-                          {monthOptions.map((month) => (
-                            <option key={month.value} value={month.value}>
-                              {month.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="blocked-modal-row">
-                      <div className="blocked-modal-field blocked-modal-field--full">
-                        <label className="blocked-modal-label">Reason</label>
-                        <input
-                          className="blocked-modal-input"
-                          type="text"
-                          value={modalBlockedReason}
-                          onChange={(e) => setModalBlockedReason(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="blocked-modal-actions">
-                    <button
-                      type="button"
-                      className="blocked-modal-primary-btn"
-                      onClick={addBlockedDate}
-                      disabled={!modalBlockedDay || modalBlockedMonth === ""}
-                    >
-                      Save
-                    </button>
-
-                    <button
-                      type="button"
-                      className="blocked-modal-secondary-btn"
-                      onClick={closeAddBlockedModal}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {isDeleteBlockedModalOpen && blockedDateToDelete && (
-              <div className="blocked-modal-overlay">
-                <div className="blocked-modal blocked-modal--delete">
-                  <div className="blocked-modal-header">
-                    <div className="blocked-modal-title">Delete Blocked Date</div>
-                    <button
-                      type="button"
-                      className="blocked-modal-close"
-                      onClick={closeDeleteBlockedModal}
-                    >
-                      ×
-                    </button>
-                  </div>
-
-                  <div className="blocked-delete-content">
-                    <div className="blocked-delete-icon">🗑</div>
-                    <div className="blocked-delete-text">
-                      Are you sure you would like to delete blocked date "
-                      {formatBlockedTableDate(blockedDateToDelete.date)}"?
-                    </div>
-                  </div>
-
-                  <div className="blocked-modal-actions blocked-modal-actions--center">
-                    <button
-                      type="button"
-                      className="blocked-modal-primary-btn"
-                      onClick={confirmDeleteBlockedDate}
-                    >
-                      Delete
-                    </button>
-
-                    <button
-                      type="button"
-                      className="blocked-modal-secondary-btn"
-                      onClick={closeDeleteBlockedModal}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
+          <BlockedDaysTab
+            calendarYear={calendarYear}
+            calendarMonth={calendarMonth}
+            selectedCalendarDate={selectedCalendarDate}
+            blockedDateMap={blockedDateMap}
+            daysInMonth={daysInMonth}
+            firstDayOffset={firstDayOffset}
+            blockedRowsToShow={blockedRowsToShow}
+            isAddBlockedModalOpen={isAddBlockedModalOpen}
+            isDeleteBlockedModalOpen={isDeleteBlockedModalOpen}
+            blockedDateToDelete={blockedDateToDelete}
+            modalBlockedDay={modalBlockedDay}
+            modalBlockedMonth={modalBlockedMonth}
+            modalBlockedReason={modalBlockedReason}
+            monthOptions={monthOptions}
+            dayOptions={dayOptions}
+            loading={blockedLoading}
+            saving={blockedSaving}
+            error={blockedError}
+            onPreviousMonth={goToPreviousMonth}
+            onNextMonth={goToNextMonth}
+            onSelectCalendarDate={setSelectedCalendarDate}
+            onOpenAddModal={openAddBlockedModal}
+            onCloseAddModal={closeAddBlockedModal}
+            onAddBlockedDate={addBlockedDate}
+            onAskDeleteBlockedDate={askDeleteBlockedDate}
+            onCloseDeleteModal={closeDeleteBlockedModal}
+            onConfirmDeleteBlockedDate={confirmDeleteBlockedDate}
+            onChangeModalBlockedDay={setModalBlockedDay}
+            onChangeModalBlockedMonth={setModalBlockedMonth}
+            onChangeModalBlockedReason={setModalBlockedReason}
+          />
         )}
       </section>
 
       <div className="availability-footer">
-        <button type="button" className="availability-save" onClick={onSaveChanges}>
+        <button
+          type="button"
+          className="availability-save"
+          onClick={onSaveChanges}
+          disabled={businessHoursSaving || blockedSaving}
+        >
           Save Changes
         </button>
       </div>

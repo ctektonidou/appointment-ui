@@ -1,13 +1,30 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
-import type { View, Event as RBCEvent } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay, setHours, setMinutes } from "date-fns";
+import type { Event as RBCEvent, View } from "react-big-calendar";
+import {
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  setHours,
+  setMinutes,
+} from "date-fns";
 import { enUS } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 
 import EditAppointmentModal, {
   type Appointment,
 } from "../../pages/EditAppointmentModal/EditAppointmentModal";
+
+import {
+  searchCustomerAppointments,
+  searchOwnerAppointments,
+  searchStaffAppointments,
+  updateAppointmentStatus,
+  updateBusinessAppointment,
+  type AppointmentListItemResponse,
+  type AppointmentStatus,
+} from "../../api/appointments";
 
 import "./CalendarPage.css";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -22,6 +39,14 @@ function getStoredUserRole(): UserRole {
   return "customer";
 }
 
+function getStoredUserId(): number | null {
+  const raw = localStorage.getItem("userId");
+  if (!raw) return null;
+
+  const parsed = Number(raw);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 const locales = {
   "en-US": enUS,
 };
@@ -34,27 +59,24 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
-// --------- event type ----------
 export type CalendarEvent = Omit<RBCEvent, "title" | "start" | "end"> & {
   id: number;
+  businessId: number;
+  serviceId: number;
+  staffId: number;
+  customerUserId: number | null;
   title: string;
   start: Date;
   end: Date;
   staffName: string;
   customerName: string;
   serviceName: string;
-  status: "ACTIVE" | "CANCELLED" | "NO_SHOW" | "COMPLETED";
+  businessName: string;
+  status: AppointmentStatus;
+  clientEmail?: string;
+  clientPhone?: string;
   notes?: string;
 };
-
-function makeDate(dayIndex: number, hour: number, minute = 0): Date {
-  const now = new Date();
-  const monday = startOfWeek(now, { weekStartsOn: 1 });
-  const d = new Date(monday);
-  d.setDate(monday.getDate() + dayIndex);
-  d.setHours(hour, minute, 0, 0);
-  return d;
-}
 
 function combineDateAndTime(dateValue: string, timeValue: string): Date {
   const base = new Date(dateValue);
@@ -70,66 +92,86 @@ function toTimeInputValue(date: Date): string {
   return format(date, "HH:mm");
 }
 
+function toLocalDateTimeParam(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+}
+
+function mapApiAppointmentToCalendarEvent(
+  item: AppointmentListItemResponse
+): CalendarEvent {
+  return {
+    id: item.id,
+    businessId: item.businessId,
+    serviceId: item.serviceId,
+    staffId: item.staffId,
+    customerUserId: item.customerUserId,
+    title: `${item.customerName} – ${item.serviceName}`,
+    start: new Date(item.startTime),
+    end: new Date(item.endTime),
+    staffName: item.staffName,
+    customerName: item.customerName,
+    serviceName: item.serviceName,
+    businessName: item.businessName,
+    status: item.status,
+    clientEmail: item.clientEmail ?? "",
+    clientPhone: item.clientPhone ?? "",
+    notes: item.clientNotes ?? "",
+  };
+}
+
 function mapCalendarEventToAppointment(event: CalendarEvent): Appointment {
   return {
     id: event.id,
     client: event.customerName,
     staff: event.staffName,
     service: event.serviceName,
-    date: toDateInputValue(event.start as Date),
-    time: toTimeInputValue(event.start as Date),
-    endTime: toTimeInputValue(event.end as Date),
+    date: toDateInputValue(event.start),
+    time: toTimeInputValue(event.start),
+    endTime: toTimeInputValue(event.end),
     status: event.status,
     notes: event.notes || "",
   };
 }
 
-const INITIAL_EVENTS: CalendarEvent[] = [
-  {
-    id: 1,
-    title: "John Smith – Haircut",
-    start: makeDate(0, 11),
-    end: makeDate(0, 12),
-    staffName: "John Smith",
-    customerName: "Customer A",
-    serviceName: "Haircut",
-    status: "ACTIVE",
-    notes: "No notes",
-  },
-  {
-    id: 2,
-    title: "John Smith – Haircut",
-    start: makeDate(2, 13),
-    end: makeDate(2, 14),
-    staffName: "John Smith",
-    customerName: "Customer B",
-    serviceName: "Haircut",
-    status: "ACTIVE",
-    notes: "",
-  },
-  {
-    id: 3,
-    title: "John Smith – Haircut",
-    start: makeDate(3, 16),
-    end: makeDate(3, 17),
-    staffName: "John Smith",
-    customerName: "Customer C",
-    serviceName: "Haircut",
-    status: "ACTIVE",
-    notes: "No notes",
-  },
-];
+function getRangeForView(currentDate: Date, currentView: "week" | "day") {
+  if (currentView === "day") {
+    const from = new Date(currentDate);
+    from.setHours(0, 0, 0, 0);
 
-const STAFF_OPTIONS = ["John Smith", "Anna Peter", "Lena Nock"];
+    const to = new Date(currentDate);
+    to.setHours(23, 59, 59, 999);
+
+    return { from, to };
+  }
+
+  const monday = startOfWeek(currentDate, { weekStartsOn: 1 });
+
+  const from = new Date(monday);
+  from.setHours(0, 0, 0, 0);
+
+  const to = new Date(monday);
+  to.setDate(monday.getDate() + 6);
+  to.setHours(23, 59, 59, 999);
+
+  return { from, to };
+}
 
 export default function CalendarPage() {
   const navigate = useNavigate();
   const role: UserRole = getStoredUserRole();
+  const userId = getStoredUserId();
   const isOwner = role === "owner";
-  const isCustomer = role === "customer";
 
-  const [events, setEvents] = useState<CalendarEvent[]>(INITIAL_EVENTS);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [view, setView] = useState<"week" | "day">("week");
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [staffFilter, setStaffFilter] = useState<string>("ALL");
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
 
@@ -139,12 +181,9 @@ export default function CalendarPage() {
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] = useState<CalendarEvent | null>(null);
 
-  const filteredEvents = useMemo(() => {
-    if (!isOwner || staffFilter === "ALL") {
-      return events;
-    }
-    return events.filter((e) => e.staffName === staffFilter);
-  }, [events, staffFilter, isOwner]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const title =
     role === "owner"
@@ -153,9 +192,72 @@ export default function CalendarPage() {
         ? "Appointments Calendar"
         : "My Appointments Calendar";
 
+  async function loadAppointments() {
+    if (!userId) {
+      setError("User id was not found in localStorage.");
+      setEvents([]);
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const { from, to } = getRangeForView(currentDate, view);
+
+      const commonParams = {
+        userId,
+        from: toLocalDateTimeParam(from),
+        to: toLocalDateTimeParam(to),
+      };
+
+      let data: AppointmentListItemResponse[] = [];
+
+      if (role === "owner") {
+        data = await searchOwnerAppointments(commonParams);
+      } else if (role === "staff") {
+        data = await searchStaffAppointments(commonParams);
+      } else {
+        data = await searchCustomerAppointments(commonParams);
+      }
+
+      const mapped = data.map(mapApiAppointmentToCalendarEvent);
+      setEvents(mapped);
+
+      setSelected((prev) => {
+        if (!prev) return null;
+        return mapped.find((item) => item.id === prev.id) ?? null;
+      });
+    } catch (err) {
+      setEvents([]);
+      setSelected(null);
+      setError(err instanceof Error ? err.message : "Failed to load appointments.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadAppointments();
+  }, [currentDate, view, role, userId]);
+
+  const staffOptions = useMemo(() => {
+    const uniqueNames = Array.from(
+      new Set(events.map((event) => event.staffName).filter(Boolean))
+    );
+    return uniqueNames.sort((a, b) => a.localeCompare(b));
+  }, [events]);
+
+  const filteredEvents = useMemo(() => {
+    if (!isOwner || staffFilter === "ALL") {
+      return events;
+    }
+
+    return events.filter((e) => e.staffName === staffFilter);
+  }, [events, isOwner, staffFilter]);
+
   function openEditModal() {
     if (!selected) return;
-
     setEditingAppointment(mapCalendarEventToAppointment(selected));
     setIsEditModalOpen(true);
   }
@@ -165,7 +267,9 @@ export default function CalendarPage() {
     setEditingAppointment(null);
   }
 
-  function handleSaveAppointment(updated: Appointment) {
+  async function handleSaveAppointment(updated: Appointment) {
+    if (!selected) return;
+
     const newStart = combineDateAndTime(updated.date, updated.time);
     const newEnd = combineDateAndTime(updated.date, updated.endTime);
 
@@ -174,28 +278,30 @@ export default function CalendarPage() {
       return;
     }
 
-    setEvents((prev) =>
-      prev.map((event) => {
-        if (event.id !== updated.id) return event;
+    setSaving(true);
+    setError("");
 
-        const updatedEvent: CalendarEvent = {
-          ...event,
-          customerName: updated.client,
-          staffName: updated.staff,
-          serviceName: updated.service,
-          status: updated.status,
-          notes: updated.notes.trim(),
-          start: newStart,
-          end: newEnd,
-          title: `${updated.staff} – ${updated.service}`,
-        };
+    try {
+      await updateBusinessAppointment(selected.businessId, selected.id, {
+        serviceId: selected.serviceId,
+        staffId: selected.staffId,
+        customerUserId: selected.customerUserId,
+        clientName: updated.client,
+        clientEmail: selected.clientEmail || null,
+        clientPhone: selected.clientPhone || null,
+        clientNotes: updated.notes.trim(),
+        startTime: toLocalDateTimeParam(newStart),
+        endTime: toLocalDateTimeParam(newEnd),
+        status: updated.status,
+      });
 
-        setSelected(updatedEvent);
-        return updatedEvent;
-      })
-    );
-
-    closeEditModal();
+      closeEditModal();
+      await loadAppointments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save appointment.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function openCancelModal() {
@@ -209,27 +315,28 @@ export default function CalendarPage() {
     setIsCancelModalOpen(false);
   }
 
-  function confirmCancelAppointment() {
+  async function confirmCancelAppointment() {
     if (!appointmentToCancel) return;
 
-    const updatedEvent: CalendarEvent = {
-      ...appointmentToCancel,
-      status: "CANCELLED",
-    };
+    setSaving(true);
+    setError("");
 
-    setEvents((prev) =>
-      prev.map((event) =>
-        event.id === appointmentToCancel.id ? updatedEvent : event
-      )
-    );
+    try {
+      await updateAppointmentStatus(
+        appointmentToCancel.businessId,
+        appointmentToCancel.id,
+        "CANCELLED"
+      );
 
-    if (selected?.id === appointmentToCancel.id) {
-      setSelected(updatedEvent);
+      closeCancelModal();
+      await loadAppointments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to cancel appointment.");
+    } finally {
+      setSaving(false);
     }
-
-    closeCancelModal();
   }
-  
+
   function onCreateAppointment() {
     navigate("/create-appointment");
   }
@@ -245,7 +352,7 @@ export default function CalendarPage() {
               onChange={(e) => setStaffFilter(e.target.value)}
             >
               <option value="ALL">All Staff</option>
-              {STAFF_OPTIONS.map((staff) => (
+              {staffOptions.map((staff) => (
                 <option key={staff} value={staff}>
                   {staff}
                 </option>
@@ -295,6 +402,9 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      {loading && <div className="calendar-info">Loading appointments...</div>}
+      {!loading && error && <div className="calendar-error">{error}</div>}
+
       <div className="calendar-main">
         <section className="calendar-card calendar-card--calendar">
           <Calendar
@@ -303,6 +413,7 @@ export default function CalendarPage() {
             startAccessor="start"
             endAccessor="end"
             view={view}
+            date={currentDate}
             defaultView="week"
             views={{ week: true, day: true }}
             onView={(nextView: View) => {
@@ -310,13 +421,13 @@ export default function CalendarPage() {
                 setView(nextView);
               }
             }}
-            onDrillDown={() => { }}
-            toolbar={false}
+            onNavigate={(date) => setCurrentDate(date)}
+            toolbar={true}
             step={30}
             timeslots={2}
             style={{ height: 600 }}
-            min={makeDate(0, 8)}
-            max={makeDate(0, 21)}
+            min={new Date(1970, 0, 1, 8, 0, 0)}
+            max={new Date(1970, 0, 1, 21, 0, 0)}
             onSelectEvent={(event) => setSelected(event as CalendarEvent)}
           />
         </section>
@@ -332,6 +443,11 @@ export default function CalendarPage() {
               </div>
 
               <div className="calendar-detail-row">
+                <span className="calendar-detail-label">Business</span>
+                <span className="calendar-detail-value">{selected.businessName}</span>
+              </div>
+
+              <div className="calendar-detail-row">
                 <span className="calendar-detail-label">Staff</span>
                 <span className="calendar-detail-value">{selected.staffName}</span>
               </div>
@@ -344,8 +460,8 @@ export default function CalendarPage() {
               <div className="calendar-detail-row">
                 <span className="calendar-detail-label">Time</span>
                 <span className="calendar-detail-value">
-                  {format(selected.start as Date, "EEE d MMM, HH:mm")} -{" "}
-                  {format(selected.end as Date, "HH:mm")}
+                  {format(selected.start, "EEE d MMM, HH:mm")} -{" "}
+                  {format(selected.end, "HH:mm")}
                 </span>
               </div>
 
@@ -366,6 +482,7 @@ export default function CalendarPage() {
                   type="button"
                   className="calendar-btn-edit"
                   onClick={openEditModal}
+                  disabled={saving}
                 >
                   Edit
                 </button>
@@ -374,6 +491,7 @@ export default function CalendarPage() {
                   type="button"
                   className="calendar-btn-ghost"
                   onClick={openCancelModal}
+                  disabled={saving || selected.status === "CANCELLED"}
                 >
                   Cancel
                 </button>
@@ -416,7 +534,7 @@ export default function CalendarPage() {
                 Are you sure you want to cancel the appointment for{" "}
                 <strong>{appointmentToCancel.customerName}</strong> on{" "}
                 <strong>
-                  {format(appointmentToCancel.start as Date, "EEE d MMM, HH:mm")}
+                  {format(appointmentToCancel.start, "EEE d MMM, HH:mm")}
                 </strong>
                 ?
               </div>
@@ -427,6 +545,7 @@ export default function CalendarPage() {
                 type="button"
                 className="calendar-btn-danger"
                 onClick={confirmCancelAppointment}
+                disabled={saving}
               >
                 Confirm Cancel
               </button>
@@ -435,6 +554,7 @@ export default function CalendarPage() {
                 type="button"
                 className="calendar-btn-ghost"
                 onClick={closeCancelModal}
+                disabled={saving}
               >
                 Keep Appointment
               </button>

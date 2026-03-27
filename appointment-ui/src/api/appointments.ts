@@ -1,100 +1,191 @@
-export type AppointmentStatus = "SCHEDULED" | "CANCELLED" | "NO_SHOW";
+const API_BASE_URL = "http://localhost:8080";
 
-export type OwnerAppointmentRow = {
-    id: number;
-    startTime: string;
-    endTime: string;
-    customerName: string;
-    businessName: string;
-    serviceName: string;
-    staffName: string;
-    status: AppointmentStatus;
-};
+export type AppointmentStatus =
+  | "SCHEDULED"
+  | "CANCELLED"
+  | "NO_SHOW"
+  | "COMPLETED";
 
-export type AppointmentListItem = {
+export type AppointmentListItemResponse = {
   id: number;
+  businessId: number;
+  serviceId: number;
+  staffId: number;
+  customerUserId: number | null;
   startTime: string;
   endTime: string;
   customerName: string;
   businessName: string;
   serviceName: string;
   staffName: string;
+  clientEmail: string | null;
+  clientPhone: string | null;
+  clientNotes: string | null;
   status: AppointmentStatus;
 };
 
-const API_BASE = "http://localhost:8080/api/appointments";
+export type AppointmentResponse = {
+  id: number;
+  businessId: number;
+  serviceId: number;
+  staffId: number;
+  customerUserId: number | null;
+  clientName: string;
+  clientEmail: string | null;
+  clientPhone: string | null;
+  clientNotes: string | null;
+  startTime: string;
+  endTime: string;
+  status: AppointmentStatus;
+  source: string;
+};
 
-async function handleResponse<T>(response: Response): Promise<T> {
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+export type UpdateAppointmentRequest = {
+  serviceId: number;
+  staffId: number;
+  customerUserId: number | null;
+  clientName: string;
+  clientEmail?: string | null;
+  clientPhone?: string | null;
+  clientNotes?: string | null;
+  startTime: string;
+  endTime: string;
+  status: AppointmentStatus;
+};
 
-  if (!response.ok) {
-    throw new Error(data?.message || "Request failed");
+function buildUrl(
+  path: string,
+  params?: Record<string, string | number | undefined | null>
+) {
+  const url = new URL(`${API_BASE_URL}${path}`);
+
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        url.searchParams.append(key, String(value));
+      }
+    });
   }
 
-  return data as T;
+  return url.toString();
+}
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Request failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
 }
 
 export async function searchOwnerAppointments(params: {
   userId: number;
   from?: string;
   to?: string;
-  status?: string;
+  status?: AppointmentStatus;
   staffId?: number;
   serviceId?: number;
   search?: string;
-}): Promise<AppointmentListItem[]> {
-  const query = new URLSearchParams();
+}): Promise<AppointmentListItemResponse[]> {
+  const url = buildUrl(`/api/appointments/owner/user/${params.userId}`, {
+    from: params.from,
+    to: params.to,
+    status: params.status,
+    staffId: params.staffId,
+    serviceId: params.serviceId,
+    search: params.search,
+  });
 
-  if (params.from) query.set("from", params.from);
-  if (params.to) query.set("to", params.to);
-  if (params.status && params.status !== "ALL") query.set("status", params.status);
-  if (params.staffId != null) query.set("staffId", String(params.staffId));
-  if (params.serviceId != null) query.set("serviceId", String(params.serviceId));
-  if (params.search && params.search.trim() !== "") query.set("search", params.search.trim());
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
 
-  const response = await fetch(`${API_BASE}/owner/user/${params.userId}?${query.toString()}`);
-  return handleResponse<AppointmentListItem[]>(response);
+  return handleResponse<AppointmentListItemResponse[]>(response);
 }
 
 export async function searchStaffAppointments(params: {
   userId: number;
   from?: string;
   to?: string;
-  status?: string;
+  status?: AppointmentStatus;
   serviceId?: number;
   search?: string;
-}): Promise<AppointmentListItem[]> {
-  const query = new URLSearchParams();
+}): Promise<AppointmentListItemResponse[]> {
+  const url = buildUrl(`/api/appointments/staff/user/${params.userId}`, {
+    from: params.from,
+    to: params.to,
+    status: params.status,
+    serviceId: params.serviceId,
+    search: params.search,
+  });
 
-  if (params.from) query.set("from", params.from);
-  if (params.to) query.set("to", params.to);
-  if (params.status && params.status !== "ALL") query.set("status", params.status);
-  if (params.serviceId != null) query.set("serviceId", String(params.serviceId));
-  if (params.search && params.search.trim() !== "") query.set("search", params.search.trim());
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
 
-  const response = await fetch(`${API_BASE}/staff/user/${params.userId}?${query.toString()}`);
-  return handleResponse<AppointmentListItem[]>(response);
+  return handleResponse<AppointmentListItemResponse[]>(response);
 }
 
 export async function searchCustomerAppointments(params: {
   userId: number;
   from?: string;
   to?: string;
-  status?: string;
+  status?: AppointmentStatus;
   businessId?: number;
   serviceId?: number;
   search?: string;
-}): Promise<AppointmentListItem[]> {
-  const query = new URLSearchParams();
+}): Promise<AppointmentListItemResponse[]> {
+  const url = buildUrl(`/api/appointments/customer/user/${params.userId}`, {
+    from: params.from,
+    to: params.to,
+    status: params.status,
+    businessId: params.businessId,
+    serviceId: params.serviceId,
+    search: params.search,
+  });
 
-  if (params.from) query.set("from", params.from);
-  if (params.to) query.set("to", params.to);
-  if (params.status && params.status !== "ALL") query.set("status", params.status);
-  if (params.businessId != null) query.set("businessId", String(params.businessId));
-  if (params.serviceId != null) query.set("serviceId", String(params.serviceId));
-  if (params.search && params.search.trim() !== "") query.set("search", params.search.trim());
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
 
-  const response = await fetch(`${API_BASE}/customer/user/${params.userId}?${query.toString()}`);
-  return handleResponse<AppointmentListItem[]>(response);
+  return handleResponse<AppointmentListItemResponse[]>(response);
+}
+
+export async function updateBusinessAppointment(
+  businessId: number,
+  appointmentId: number,
+  payload: UpdateAppointmentRequest
+): Promise<AppointmentResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/businesses/${businessId}/appointments/${appointmentId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  return handleResponse<AppointmentResponse>(response);
+}
+
+export async function updateAppointmentStatus(
+  businessId: number,
+  appointmentId: number,
+  status: AppointmentStatus
+): Promise<AppointmentResponse> {
+  const url = buildUrl(
+    `/api/businesses/${businessId}/appointments/${appointmentId}/status`,
+    { value: status }
+  );
+
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  return handleResponse<AppointmentResponse>(response);
 }

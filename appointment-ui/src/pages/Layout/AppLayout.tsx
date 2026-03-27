@@ -83,6 +83,7 @@ export default function AppLayout() {
     localStorage.removeItem("userId");
     localStorage.removeItem("userRole");
     localStorage.removeItem("userEmail");
+    localStorage.removeItem("businessId");
     navigate("/");
     window.location.reload();
   }

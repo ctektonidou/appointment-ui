@@ -1,11 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  createBlockedDateForStaffUser,
+  deleteBlockedDateForStaffUser,
+  getBlockedDatesForStaffUser,
+  type BlockedDateResponse,
+} from "../../api/blockedDates";
 import "./BlockedDatesPage.css";
 
 type UserRole = "owner" | "staff" | "customer";
 
 type BlockedDate = {
   id: number;
-  date: string; // yyyy-mm-dd
+  date: string;
   reason: string;
 };
 
@@ -23,10 +29,6 @@ function getStoredUserId(): number | null {
 
   const parsed = Number(storedUserId);
   return Number.isNaN(parsed) ? null : parsed;
-}
-
-function newId() {
-  return Date.now() + Math.floor(Math.random() * 100000);
 }
 
 function formatBlockedTableDate(dateStr: string) {
@@ -61,18 +63,25 @@ function toDateString(year: number, monthIndex: number, day: number) {
   return `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`;
 }
 
+function mapBlockedDate(item: BlockedDateResponse): BlockedDate {
+  return {
+    id: item.id,
+    date: item.date,
+    reason: item.reason ?? "",
+  };
+}
+
 export default function BlockedDatesPage() {
   const role = getStoredUserRole();
   const isStaff = role === "staff";
-  const loggedInStaffId = getStoredUserId();
+  const loggedInStaffUserId = getStoredUserId();
 
   const today = new Date();
 
-  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([
-    { id: 1, date: "2026-04-10", reason: "Vacation" },
-    { id: 2, date: "2026-04-11", reason: "Vacation" },
-    { id: 3, date: "2026-05-02", reason: "Personal leave" },
-  ]);
+  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
@@ -85,6 +94,27 @@ export default function BlockedDatesPage() {
   const [modalBlockedDay, setModalBlockedDay] = useState("");
   const [modalBlockedMonth, setModalBlockedMonth] = useState(String(today.getMonth()));
   const [modalBlockedReason, setModalBlockedReason] = useState("");
+
+  async function loadBlockedDates() {
+    if (!isStaff || !loggedInStaffUserId) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const data = await getBlockedDatesForStaffUser(loggedInStaffUserId);
+      setBlockedDates(data.map(mapBlockedDate).sort((a, b) => a.date.localeCompare(b.date)));
+    } catch (err) {
+      setBlockedDates([]);
+      setError(err instanceof Error ? err.message : "Failed to load blocked dates.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadBlockedDates();
+  }, [isStaff, loggedInStaffUserId]);
 
   function openAddBlockedModal() {
     if (!isStaff) return;
@@ -99,8 +129,8 @@ export default function BlockedDatesPage() {
     setIsAddBlockedModalOpen(false);
   }
 
-  function addBlockedDate() {
-    if (!isStaff) return;
+  async function addBlockedDate() {
+    if (!isStaff || !loggedInStaffUserId) return;
     if (!modalBlockedDay || modalBlockedMonth === "") return;
 
     const monthIndex = Number(modalBlockedMonth);
@@ -110,21 +140,24 @@ export default function BlockedDatesPage() {
 
     const dateStr = toDateString(calendarYear, monthIndex, day);
 
-    const newItem: BlockedDate = {
-      id: newId(),
-      date: dateStr,
-      reason: modalBlockedReason.trim(),
-    };
+    setSaving(true);
+    setError("");
 
-    setBlockedDates((prev) => {
-      const alreadyExists = prev.some((item) => item.date === dateStr);
-      if (alreadyExists) return prev;
-      return [...prev, newItem].sort((a, b) => a.date.localeCompare(b.date));
-    });
+    try {
+      await createBlockedDateForStaffUser(loggedInStaffUserId, {
+        date: dateStr,
+        reason: modalBlockedReason.trim() || null,
+      });
 
-    setCalendarMonth(monthIndex);
-    setSelectedCalendarDate(dateStr);
-    closeAddBlockedModal();
+      setCalendarMonth(monthIndex);
+      setSelectedCalendarDate(dateStr);
+      closeAddBlockedModal();
+      await loadBlockedDates();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add blocked date.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function askDeleteBlockedDate(item: BlockedDate) {
@@ -139,21 +172,29 @@ export default function BlockedDatesPage() {
     setIsDeleteBlockedModalOpen(false);
   }
 
-  function confirmDeleteBlockedDate() {
-    if (!isStaff || !blockedDateToDelete) return;
+  async function confirmDeleteBlockedDate() {
+    if (!isStaff || !loggedInStaffUserId || !blockedDateToDelete) return;
 
-    setBlockedDates((prev) => prev.filter((item) => item.id !== blockedDateToDelete.id));
+    setSaving(true);
+    setError("");
 
-    if (selectedCalendarDate === blockedDateToDelete.date) {
-      setSelectedCalendarDate(null);
+    try {
+      await deleteBlockedDateForStaffUser(loggedInStaffUserId, blockedDateToDelete.id);
+
+      if (selectedCalendarDate === blockedDateToDelete.date) {
+        setSelectedCalendarDate(null);
+      }
+
+      closeDeleteBlockedModal();
+      await loadBlockedDates();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete blocked date.");
+    } finally {
+      setSaving(false);
     }
-
-    closeDeleteBlockedModal();
   }
 
   function goToPreviousMonth() {
-    if (!isStaff) return;
-
     setSelectedCalendarDate(null);
     setCalendarMonth((prev) => {
       if (prev === 0) {
@@ -165,8 +206,6 @@ export default function BlockedDatesPage() {
   }
 
   function goToNextMonth() {
-    if (!isStaff) return;
-
     setSelectedCalendarDate(null);
     setCalendarMonth((prev) => {
       if (prev === 11) {
@@ -206,14 +245,6 @@ export default function BlockedDatesPage() {
     blockedDatesForSelectedMonth.map((item) => Number(item.date.slice(8, 10)))
   );
 
-  function onSaveChanges() {
-    console.log("SAVE STAFF BLOCKED DATES", {
-      staffId: loggedInStaffId,
-      blockedDates,
-    });
-    alert("Vacation days saved (demo) ✅");
-  }
-
   const headerTitle = useMemo(() => "My Vacation Days", []);
 
   if (!isStaff) {
@@ -232,6 +263,8 @@ export default function BlockedDatesPage() {
   return (
     <div className="blocked-dates-page">
       <h1 className="availability-title">{headerTitle}</h1>
+
+      {error && <div className="calendar-error">{error}</div>}
 
       <section className="availability-card">
         <div className="blocked-top">
@@ -302,6 +335,7 @@ export default function BlockedDatesPage() {
                 type="button"
                 className="availability-btn-link"
                 onClick={openAddBlockedModal}
+                disabled={saving}
               >
                 Add Date
               </button>
@@ -317,7 +351,13 @@ export default function BlockedDatesPage() {
               </thead>
 
               <tbody>
-                {blockedRowsToShow.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={3} className="blocked-empty-cell">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : blockedRowsToShow.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="blocked-empty-cell">
                       No blocked dates found.
@@ -334,6 +374,7 @@ export default function BlockedDatesPage() {
                           className="blocked-delete-icon-btn"
                           onClick={() => askDeleteBlockedDate(item)}
                           title="Delete"
+                          disabled={saving}
                         >
                           🗑
                         </button>
@@ -417,7 +458,7 @@ export default function BlockedDatesPage() {
                   type="button"
                   className="blocked-modal-primary-btn"
                   onClick={addBlockedDate}
-                  disabled={!modalBlockedDay || modalBlockedMonth === ""}
+                  disabled={saving || !modalBlockedDay || modalBlockedMonth === ""}
                 >
                   Save
                 </button>
@@ -426,6 +467,7 @@ export default function BlockedDatesPage() {
                   type="button"
                   className="blocked-modal-secondary-btn"
                   onClick={closeAddBlockedModal}
+                  disabled={saving}
                 >
                   Cancel
                 </button>
@@ -461,6 +503,7 @@ export default function BlockedDatesPage() {
                   type="button"
                   className="blocked-modal-primary-btn"
                   onClick={confirmDeleteBlockedDate}
+                  disabled={saving}
                 >
                   Delete
                 </button>
@@ -469,6 +512,7 @@ export default function BlockedDatesPage() {
                   type="button"
                   className="blocked-modal-secondary-btn"
                   onClick={closeDeleteBlockedModal}
+                  disabled={saving}
                 >
                   Cancel
                 </button>
@@ -477,12 +521,6 @@ export default function BlockedDatesPage() {
           </div>
         )}
       </section>
-
-      <div className="availability-footer">
-        <button type="button" className="availability-save" onClick={onSaveChanges}>
-          Save Changes
-        </button>
-      </div>
     </div>
   );
 }
