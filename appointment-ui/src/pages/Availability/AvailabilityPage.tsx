@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import "./AvailabilityPage.css";
 
 import BusinessHoursTab from "./components/BusinessHoursTab";
@@ -15,15 +15,11 @@ import type {
 } from "./Availability.types";
 
 import {
-  BASE_STAFF,
   DAYS,
-  cloneStaffList,
   getDaysInMonth,
   getFirstDayOfMonth,
   getMonthName,
-  getStoredUserId,
   getStoredUserRole,
-  newId,
   toDateString,
 } from "./Availability.utils";
 
@@ -40,8 +36,23 @@ import {
   type BusinessHoursDto,
 } from "../../api/businessHours";
 
+import { listStaff, type Staff } from "../../api/staff";
+import {
+  getStaffAvailability,
+  saveStaffAvailability,
+  type StaffAvailabilityDto,
+} from "../../api/staffAvailability";
+
 function getStoredBusinessId(): number | null {
   const raw = localStorage.getItem("businessId");
+  if (!raw) return null;
+
+  const parsed = Number(raw);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function getStoredStaffId(): number | null {
+  const raw = localStorage.getItem("staffId");
   if (!raw) return null;
 
   const parsed = Number(raw);
@@ -124,11 +135,79 @@ function mapUiBusinessHoursToDto(item: BusinessHoursDay): BusinessHoursDto {
   };
 }
 
+function getStaffDisplayName(staff: Staff): string {
+  return `${staff.firstName ?? ""} ${staff.lastName ?? ""}`.trim() || `Staff #${staff.id}`;
+}
+
+function buildEmptyStaffAvailabilityState(): Record<DayKey, StaffAvailability[]> {
+  return {
+    Mon: [],
+    Tue: [],
+    Wed: [],
+    Thu: [],
+    Fri: [],
+    Sat: [],
+    Sun: [],
+  };
+}
+
+function createDefaultStaffAvailability(staff: Staff[]): Record<DayKey, StaffAvailability[]> {
+  const state = buildEmptyStaffAvailabilityState();
+
+  for (const day of DAYS) {
+    state[day] = staff.map((member) => ({
+      staffId: member.id,
+      staffName: getStaffDisplayName(member),
+      enabled: true,
+      from: "09:00",
+      to: "17:00",
+    }));
+  }
+
+  return state;
+}
+
+function mapAvailabilityDtosToUiRows(
+  staff: Staff,
+  dtos: StaffAvailabilityDto[]
+): Record<DayKey, StaffAvailability> {
+  const byDay = new Map<number, StaffAvailabilityDto>(
+    dtos.map((item) => [item.dayOfWeek, item])
+  );
+
+  const result = {} as Record<DayKey, StaffAvailability>;
+
+  for (const day of DAYS) {
+    const dto = byDay.get(DAY_TO_NUMBER[day]);
+
+    result[day] = {
+      staffId: staff.id,
+      staffName: getStaffDisplayName(staff),
+      enabled: dto?.isAvailable ?? true,
+      from: normalizeTime(dto?.startTime, "09:00"),
+      to: normalizeTime(dto?.endTime, "17:00"),
+    };
+  }
+
+  return result;
+}
+
+function mapUiRowsToAvailabilityDtos(
+  rowsByDay: Record<DayKey, StaffAvailability>
+): StaffAvailabilityDto[] {
+  return DAYS.map((day) => ({
+    dayOfWeek: DAY_TO_NUMBER[day],
+    isAvailable: rowsByDay[day].enabled,
+    startTime: `${rowsByDay[day].from}:00`,
+    endTime: `${rowsByDay[day].to}:00`,
+  }));
+}
+
 export default function AvailabilityPage() {
   const role = getStoredUserRole();
   const isOwner = role === "owner";
   const isStaff = role === "staff";
-  const loggedInStaffId = getStoredUserId();
+  const loggedInStaffId = getStoredStaffId();
   const businessId = getStoredBusinessId();
 
   const [topTab, setTopTab] = useState<AvailabilityTopTab>(
@@ -215,15 +294,92 @@ export default function AvailabilityPage() {
 
   const [staffAvailabilityByDay, setStaffAvailabilityByDay] = useState<
     Record<DayKey, StaffAvailability[]>
-  >({
-    Mon: cloneStaffList(BASE_STAFF),
-    Tue: cloneStaffList(BASE_STAFF),
-    Wed: cloneStaffList(BASE_STAFF),
-    Thu: cloneStaffList(BASE_STAFF),
-    Fri: cloneStaffList(BASE_STAFF),
-    Sat: cloneStaffList(BASE_STAFF),
-    Sun: cloneStaffList(BASE_STAFF),
-  });
+  >(buildEmptyStaffAvailabilityState());
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffSaving, setStaffSaving] = useState(false);
+  const [staffError, setStaffError] = useState("");
+
+  async function loadStaffAvailability() {
+    if (!businessId) {
+      setStaffError(
+        "Business id was not found. Store businessId at login or provide an owner-business lookup endpoint."
+      );
+      setStaffAvailabilityByDay(buildEmptyStaffAvailabilityState());
+      return;
+    }
+
+    if (isStaff && !loggedInStaffId) {
+      setStaffError(
+        "Staff id was not found. Store staffId at login for staff users."
+      );
+      setStaffAvailabilityByDay(buildEmptyStaffAvailabilityState());
+      return;
+    }
+
+    setStaffLoading(true);
+    setStaffError("");
+
+    try {
+      const allStaff = await listStaff(businessId, true);
+
+      const visibleStaff = isStaff
+        ? allStaff.filter((staff) => staff.id === loggedInStaffId)
+        : allStaff;
+
+      if (!visibleStaff.length) {
+        setStaffAvailabilityByDay(buildEmptyStaffAvailabilityState());
+        return;
+      }
+
+      const initialState = createDefaultStaffAvailability(visibleStaff);
+
+      const availabilityResponses = await Promise.all(
+        visibleStaff.map(async (staffMember) => {
+          try {
+            const data = await getStaffAvailability(businessId, staffMember.id);
+            return {
+              staff: staffMember,
+              availability: data,
+            };
+          } catch {
+            return {
+              staff: staffMember,
+              availability: [] as StaffAvailabilityDto[],
+            };
+          }
+        })
+      );
+
+      for (const item of availabilityResponses) {
+        const rowsByDay = mapAvailabilityDtosToUiRows(item.staff, item.availability);
+
+        for (const day of DAYS) {
+          const existingIndex = initialState[day].findIndex(
+            (row) => row.staffId === item.staff.id
+          );
+
+          if (existingIndex >= 0) {
+            initialState[day][existingIndex] = rowsByDay[day];
+          }
+        }
+      }
+
+      setStaffAvailabilityByDay(initialState);
+    } catch (err) {
+      setStaffAvailabilityByDay(buildEmptyStaffAvailabilityState());
+      setStaffError(
+        err instanceof Error ? err.message : "Failed to load staff availability."
+      );
+    } finally {
+      setStaffLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (topTab === "availability") {
+      loadStaffAvailability();
+    }
+  }, [topTab, businessId, isStaff, loggedInStaffId]);
 
   const staffAvailability = staffAvailabilityByDay[dayTab];
 
@@ -238,38 +394,8 @@ export default function AvailabilityPage() {
     }));
   }
 
-  function addRange(staffId: number) {
-    if (!canEditStaffRow(staffId)) return;
-
-    setStaffAvailabilityByDay((prev) => ({
-      ...prev,
-      [dayTab]: prev[dayTab].map((s) =>
-        s.staffId === staffId
-          ? {
-              ...s,
-              ranges: [...s.ranges, { id: newId(), from: "09:00", to: "17:00" }],
-            }
-          : s
-      ),
-    }));
-  }
-
-  function removeRange(staffId: number, rangeId: number) {
-    if (!canEditStaffRow(staffId)) return;
-
-    setStaffAvailabilityByDay((prev) => ({
-      ...prev,
-      [dayTab]: prev[dayTab].map((s) =>
-        s.staffId === staffId
-          ? { ...s, ranges: s.ranges.filter((r) => r.id !== rangeId) }
-          : s
-      ),
-    }));
-  }
-
-  function updateRange(
+  function updateStaffTime(
     staffId: number,
-    rangeId: number,
     field: "from" | "to",
     value: string
   ) {
@@ -278,14 +404,7 @@ export default function AvailabilityPage() {
     setStaffAvailabilityByDay((prev) => ({
       ...prev,
       [dayTab]: prev[dayTab].map((s) =>
-        s.staffId === staffId
-          ? {
-              ...s,
-              ranges: s.ranges.map((r) =>
-                r.id === rangeId ? { ...r, [field]: value } : r
-              ),
-            }
-          : s
+        s.staffId === staffId ? { ...s, [field]: value } : s
       ),
     }));
   }
@@ -532,6 +651,61 @@ export default function AvailabilityPage() {
       return;
     }
 
+    if (topTab === "availability") {
+      if (!businessId) {
+        setStaffError(
+          "Business id was not found. Store businessId at login or provide an owner-business lookup endpoint."
+        );
+        return;
+      }
+
+      if (isStaff && !loggedInStaffId) {
+        setStaffError("Staff id was not found. Store staffId at login for staff users.");
+        return;
+      }
+
+      setStaffSaving(true);
+      setStaffError("");
+
+      try {
+        const uniqueStaffIds = Array.from(
+          new Set(
+            DAYS.flatMap((day) => staffAvailabilityByDay[day].map((row) => row.staffId))
+          )
+        );
+
+        for (const staffId of uniqueStaffIds) {
+          if (!isOwner && staffId !== loggedInStaffId) continue;
+
+          const rowsByDay = {} as Record<DayKey, StaffAvailability>;
+
+          for (const day of DAYS) {
+            const row = staffAvailabilityByDay[day].find((item) => item.staffId === staffId);
+
+            if (!row) continue;
+            rowsByDay[day] = row;
+          }
+
+          await saveStaffAvailability(
+            businessId,
+            staffId,
+            mapUiRowsToAvailabilityDtos(rowsByDay)
+          );
+        }
+
+        alert("Availability saved ✅");
+        await loadStaffAvailability();
+      } catch (err) {
+        setStaffError(
+          err instanceof Error ? err.message : "Failed to save staff availability."
+        );
+      } finally {
+        setStaffSaving(false);
+      }
+
+      return;
+    }
+
     console.log("SAVE", {
       topTab,
       businessHours,
@@ -541,8 +715,6 @@ export default function AvailabilityPage() {
     });
     alert("Saved (demo) ✅");
   }
-
-  const headerTitle = useMemo(() => "Availability", []);
 
   if (!isOwner && !isStaff) {
     return (
@@ -559,7 +731,7 @@ export default function AvailabilityPage() {
 
   return (
     <div className="availability-page">
-      <h1 className="availability-title">{headerTitle}</h1>
+      <h1 className="availability-title">Availability</h1>
 
       <div className="availability-top-tabs">
         {isOwner && (
@@ -628,19 +800,22 @@ export default function AvailabilityPage() {
         )}
 
         {topTab === "availability" && (
-          <WeeklyAvailabilityTab
-            days={DAYS}
-            dayTab={dayTab}
-            onChangeDayTab={setDayTab}
-            staffAvailability={staffAvailability}
-            isStaff={isStaff}
-            loggedInStaffId={loggedInStaffId}
-            canEditStaffRow={canEditStaffRow}
-            onToggleStaffEnabled={toggleStaffEnabled}
-            onAddRange={addRange}
-            onRemoveRange={removeRange}
-            onUpdateRange={updateRange}
-          />
+          <>
+            {staffError && <div className="calendar-error">{staffError}</div>}
+
+            <WeeklyAvailabilityTab
+              days={DAYS}
+              dayTab={dayTab}
+              onChangeDayTab={setDayTab}
+              staffAvailability={staffAvailability}
+              isStaff={isStaff}
+              loggedInStaffId={loggedInStaffId}
+              canEditStaffRow={canEditStaffRow}
+              onToggleStaffEnabled={toggleStaffEnabled}
+              onUpdateTime={updateStaffTime}
+              loading={staffLoading}
+            />
+          </>
         )}
 
         {topTab === "availabilityOverrides" && <AvailabilityOverridesTab />}
@@ -686,7 +861,12 @@ export default function AvailabilityPage() {
           type="button"
           className="availability-save"
           onClick={onSaveChanges}
-          disabled={businessHoursSaving || blockedSaving}
+          disabled={
+            businessHoursSaving ||
+            blockedSaving ||
+            staffLoading ||
+            staffSaving
+          }
         >
           Save Changes
         </button>

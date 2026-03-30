@@ -23,6 +23,7 @@ type AuthUser = {
   lastName: string;
   role: string;
   businessId?: number | null;
+  staffId?: number | null;
 };
 
 function saveAuthUser(user: AuthUser) {
@@ -30,7 +31,17 @@ function saveAuthUser(user: AuthUser) {
   localStorage.setItem("userId", String(user.id));
   localStorage.setItem("userRole", user.role);
   localStorage.setItem("userEmail", user.email);
-  localStorage.setItem("businessId", String(user.businessId));
+  if (user.businessId != null) {
+    localStorage.setItem("businessId", String(user.businessId));
+  } else {
+    localStorage.removeItem("businessId");
+  }
+
+  if (user.staffId != null) {
+    localStorage.setItem("staffId", String(user.staffId));
+  } else {
+    localStorage.removeItem("staffId");
+  }
 }
 
 export default function AuthModal({ role, onClose }: AuthModalProps) {
@@ -102,7 +113,8 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         firstName: response.firstName,
         lastName: response.lastName,
         role: response.role,
-        businessId: response.businessId
+        businessId: response.businessId,
+        staffId: response.staffId
       });
 
       setSuccessMessage("Login successful");
@@ -136,7 +148,8 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         firstName: response.firstName,
         lastName: response.lastName,
         role: response.role,
-        businessId: response.businessId
+        businessId: response.businessId,
+        staffId: response.staffId
       });
 
       setSuccessMessage("Signup successful");
@@ -167,7 +180,8 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         firstName: response.firstName,
         lastName: response.lastName,
         role: response.role,
-        businessId: response.businessId
+        businessId: response.businessId,
+        staffId: response.staffId
       });
 
       setSuccessMessage("Login successful");
@@ -203,7 +217,8 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         firstName: response.firstName,
         lastName: response.lastName,
         role: response.role,
-        businessId: response.businessId
+        businessId: response.businessId,
+        staffId: response.staffId
       });
 
       setSuccessMessage("Signup successful");
@@ -234,7 +249,8 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         firstName: response.firstName,
         lastName: response.lastName,
         role: response.role,
-        businessId: response.businessId
+        businessId: response.businessId,
+        staffId: response.staffId
       });
 
       setSuccessMessage("Login successful");
@@ -274,7 +290,8 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         firstName: response.firstName,
         lastName: response.lastName,
         role: response.role,
-        businessId: response.businessId
+        businessId: response.businessId,
+        staffId: response.staffId
       });
 
       setSuccessMessage("Signup successful");

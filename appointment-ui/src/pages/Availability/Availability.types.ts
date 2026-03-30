@@ -7,17 +7,12 @@ export type AvailabilityTopTab =
 
 export type DayKey = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
 
-export type TimeRange = {
-  id: number;
-  from: string;
-  to: string;
-};
-
 export type StaffAvailability = {
   staffId: number;
   staffName: string;
   enabled: boolean;
-  ranges: TimeRange[];
+  from: string;
+  to: string;
 };
 
 export type BusinessHoursDay = {

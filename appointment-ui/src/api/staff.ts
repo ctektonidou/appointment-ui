@@ -1,5 +1,3 @@
-import { http } from "./http";
-
 export type Staff = {
   id: number;
   businessId: number;

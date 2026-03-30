@@ -1,4 +1,4 @@
-import type { DayKey, StaffAvailability, UserRole } from "./Availability.types";
+import type { DayKey, UserRole } from "./Availability.types";
 
 export const DAYS: DayKey[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -92,21 +92,4 @@ export function pad2(value: number) {
 
 export function toDateString(year: number, monthIndex: number, day: number) {
   return `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`;
-}
-
-export const BASE_STAFF: StaffAvailability[] = [
-  { staffId: 1, staffName: "Josh Smith", enabled: true, ranges: [{ id: 1, from: "09:00", to: "17:00" }] },
-  { staffId: 2, staffName: "Anna Peter", enabled: true, ranges: [{ id: 1, from: "10:00", to: "18:00" }] },
-  { staffId: 3, staffName: "Smith Green", enabled: true, ranges: [{ id: 1, from: "09:00", to: "15:00" }] },
-  { staffId: 4, staffName: "Lena Nock", enabled: true, ranges: [{ id: 1, from: "12:00", to: "20:00" }] },
-  { staffId: 5, staffName: "Finn Miam", enabled: false, ranges: [{ id: 1, from: "09:00", to: "17:00" }] },
-  { staffId: 6, staffName: "Liam Payne", enabled: true, ranges: [{ id: 1, from: "09:00", to: "17:00" }] },
-  { staffId: 7, staffName: "Louis Tim", enabled: false, ranges: [{ id: 1, from: "09:00", to: "17:00" }] },
-];
-
-export function cloneStaffList(source: StaffAvailability[]) {
-  return source.map((s) => ({
-    ...s,
-    ranges: s.ranges.map((r) => ({ ...r, id: newId() })),
-  }));
 }

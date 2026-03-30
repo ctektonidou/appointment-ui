@@ -10,14 +10,12 @@ type Props = {
   loggedInStaffId: number | null;
   canEditStaffRow: (staffId: number) => boolean;
   onToggleStaffEnabled: (staffId: number) => void;
-  onAddRange: (staffId: number) => void;
-  onRemoveRange: (staffId: number, rangeId: number) => void;
-  onUpdateRange: (
+  onUpdateTime: (
     staffId: number,
-    rangeId: number,
     field: "from" | "to",
     value: string
   ) => void;
+  loading?: boolean;
 };
 
 export default function WeeklyAvailabilityTab({
@@ -29,9 +27,8 @@ export default function WeeklyAvailabilityTab({
   loggedInStaffId,
   canEditStaffRow,
   onToggleStaffEnabled,
-  onAddRange,
-  onRemoveRange,
-  onUpdateRange,
+  onUpdateTime,
+  loading = false,
 }: Props) {
   return (
     <>
@@ -61,99 +58,81 @@ export default function WeeklyAvailabilityTab({
       </div>
 
       <div className="availability-rows">
-        {staffAvailability.map((s) => {
-          const rowEditable = canEditStaffRow(s.staffId);
+        {loading ? (
+          <div className="blocked-empty-cell">Loading...</div>
+        ) : staffAvailability.length === 0 ? (
+          <div className="blocked-empty-cell">No staff found.</div>
+        ) : (
+          staffAvailability.map((s) => {
+            const rowEditable = canEditStaffRow(s.staffId);
 
-          return (
-            <div
-              key={s.staffId}
-              className={
-                rowEditable
-                  ? "availability-row"
-                  : "availability-row availability-row--disabled"
-              }
-            >
-              <div className="availability-staff-name">
-                {s.staffName}
-                {isStaff && s.staffId === loggedInStaffId && (
-                  <span className="availability-me-badge">You</span>
-                )}
+            return (
+              <div
+                key={s.staffId}
+                className={
+                  rowEditable
+                    ? "availability-row"
+                    : "availability-row availability-row--disabled"
+                }
+              >
+                <div className="availability-staff-name">
+                  {s.staffName}
+                  {isStaff && s.staffId === loggedInStaffId && (
+                    <span className="availability-me-badge">You</span>
+                  )}
+                </div>
+
+                <div className="availability-toggle">
+                  <label className="toggle">
+                    <input
+                      type="checkbox"
+                      checked={s.enabled}
+                      disabled={!rowEditable}
+                      onChange={() => onToggleStaffEnabled(s.staffId)}
+                    />
+                    <span className="toggle-slider" />
+                  </label>
+                </div>
+
+                <div>
+                  <select
+                    className="availability-select"
+                    value={s.from}
+                    disabled={!s.enabled || !rowEditable}
+                    onChange={(e) =>
+                      onUpdateTime(s.staffId, "from", e.target.value)
+                    }
+                  >
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <select
+                    className="availability-select"
+                    value={s.to}
+                    disabled={!s.enabled || !rowEditable}
+                    onChange={(e) =>
+                      onUpdateTime(s.staffId, "to", e.target.value)
+                    }
+                  >
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div />
               </div>
-
-              <div className="availability-toggle">
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={s.enabled}
-                    disabled={!rowEditable}
-                    onChange={() => onToggleStaffEnabled(s.staffId)}
-                  />
-                  <span className="toggle-slider" />
-                </label>
-              </div>
-
-              <div className="availability-ranges">
-                {s.ranges.map((r, idx) => (
-                  <div key={r.id} className="availability-range">
-                    <select
-                      className="availability-select"
-                      value={r.from}
-                      disabled={!s.enabled || !rowEditable}
-                      onChange={(e) =>
-                        onUpdateRange(s.staffId, r.id, "from", e.target.value)
-                      }
-                    >
-                      {TIME_OPTIONS.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      className="availability-select"
-                      value={r.to}
-                      disabled={!s.enabled || !rowEditable}
-                      onChange={(e) =>
-                        onUpdateRange(s.staffId, r.id, "to", e.target.value)
-                      }
-                    >
-                      {TIME_OPTIONS.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-
-                    {s.ranges.length > 1 && (
-                      <button
-                        type="button"
-                        className="availability-icon-btn availability-icon-btn--danger"
-                        title="Remove"
-                        onClick={() => onRemoveRange(s.staffId, r.id)}
-                        disabled={!rowEditable}
-                      >
-                        🗑
-                      </button>
-                    )}
-
-                    {idx === s.ranges.length - 1 && (
-                      <button
-                        type="button"
-                        className="availability-icon-btn"
-                        title="Add"
-                        onClick={() => onAddRange(s.staffId)}
-                        disabled={!s.enabled || !rowEditable}
-                      >
-                        +
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </>
   );
