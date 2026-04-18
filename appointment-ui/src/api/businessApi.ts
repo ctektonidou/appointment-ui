@@ -3,6 +3,7 @@ export type BusinessResponse = {
   ownerUserId: number;
   name: string;
   industryId: number | null;
+  industryName: string;
   phone: string;
   email: string;
   timezone: string;

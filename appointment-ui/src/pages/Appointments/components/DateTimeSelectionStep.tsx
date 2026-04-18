@@ -1,6 +1,9 @@
 import type { StaffMember } from "../types/createAppointment.types";
-import { buildMonthGrid, getMonthName, isSameDay } from "../utils/createAppointment.utils";
-
+import {
+  buildMonthGrid,
+  getMonthName,
+  isSameDay,
+} from "../utils/createAppointment.utils";
 
 type DateTimeSelectionStepProps = {
   today: Date;

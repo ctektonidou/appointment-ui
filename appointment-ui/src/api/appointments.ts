@@ -189,3 +189,54 @@ export async function updateAppointmentStatus(
 
   return handleResponse<AppointmentResponse>(response);
 }
+
+export async function getAvailableTimeSlots(params: {
+  businessId: number;
+  serviceId: number;
+  staffId: number;
+  date: string;
+}): Promise<string[]> {
+  const url = buildUrl(
+    `/api/businesses/${params.businessId}/appointments/available-slots`,
+    {
+      serviceId: params.serviceId,
+      staffId: params.staffId,
+      date: params.date,
+    }
+  );
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  return handleResponse<string[]>(response);
+}
+
+export type CreateAppointmentRequest = {
+  serviceId: number;
+  staffId: number;
+  customerUserId: number | null;
+  clientName: string;
+  clientEmail?: string | null;
+  clientPhone?: string | null;
+  clientNotes?: string | null;
+  startTime: string;
+  endTime: string;
+};
+
+export async function createAppointment(
+  businessId: number,
+  payload: CreateAppointmentRequest
+): Promise<AppointmentResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/businesses/${businessId}/appointments`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  return handleResponse<AppointmentResponse>(response);
+}

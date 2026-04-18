@@ -21,6 +21,13 @@ export type CreateStaffRequest = {
   userId?: number | null;
 };
 
+export type StaffResponse = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email?: string;
+};
+
 export type UpdateStaffRequest = CreateStaffRequest;
 
 const API_BASE = "http://localhost:8080/api";

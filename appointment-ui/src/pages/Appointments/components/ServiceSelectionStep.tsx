@@ -1,6 +1,5 @@
 import type { ServiceItem } from "../types/createAppointment.types";
 
-
 type ServiceSelectionStepProps = {
   services: ServiceItem[];
   selectedService: ServiceItem | null;

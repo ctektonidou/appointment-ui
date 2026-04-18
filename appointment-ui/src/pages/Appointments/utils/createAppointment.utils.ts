@@ -1,4 +1,3 @@
-import { BASE_TIME_SLOTS } from "../types/createAppointment.data";
 import type { UserRole } from "../types/createAppointment.types";
 
 export function getStoredUserRole(): UserRole {
@@ -55,27 +54,4 @@ export function isSameDay(a: Date | null, b: Date | null) {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   );
-}
-
-export async function getAvailableTimeSlots(params: {
-  businessId: number;
-  serviceId: number;
-  staffId: number;
-  date: Date;
-}): Promise<string[]> {
-  const { staffId, date } = params;
-
-  await new Promise((resolve) => setTimeout(resolve, 350));
-
-  const dayOfMonth = date.getDate();
-
-  if (staffId === 1) {
-    return BASE_TIME_SLOTS.filter((_, index) => (index + dayOfMonth) % 4 !== 0);
-  }
-
-  if (staffId === 2) {
-    return BASE_TIME_SLOTS.filter((_, index) => (index + dayOfMonth) % 3 !== 0);
-  }
-
-  return BASE_TIME_SLOTS.filter((_, index) => (index + dayOfMonth) % 5 !== 0);
 }

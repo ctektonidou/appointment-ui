@@ -1,13 +1,17 @@
-import type { BusinessCard } from "../types/createAppointment.types";
-
+import type {
+  BusinessCard,
+  SelectOption,
+} from "../types/createAppointment.types";
 
 type BusinessSelectionStepProps = {
   industry: string;
   locationFilter: string;
   searchName: string;
-  industryOptions: string[];
-  locationOptions: string[];
-  filteredBusinesses: BusinessCard[];
+  industryOptions: SelectOption[];
+  locationOptions: SelectOption[];
+  businesses: BusinessCard[];
+  isSearching: boolean;
+  error: string;
   onIndustryChange: (value: string) => void;
   onLocationChange: (value: string) => void;
   onSearchNameChange: (value: string) => void;
@@ -21,7 +25,9 @@ export default function BusinessSelectionStep({
   searchName,
   industryOptions,
   locationOptions,
-  filteredBusinesses,
+  businesses,
+  isSearching,
+  error,
   onIndustryChange,
   onLocationChange,
   onSearchNameChange,
@@ -41,8 +47,8 @@ export default function BusinessSelectionStep({
             onChange={(e) => onIndustryChange(e.target.value)}
           >
             {industryOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
@@ -56,8 +62,8 @@ export default function BusinessSelectionStep({
             onChange={(e) => onLocationChange(e.target.value)}
           >
             {locationOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
@@ -79,18 +85,23 @@ export default function BusinessSelectionStep({
           type="button"
           className="create-appointment-search-btn"
           onClick={onSearch}
+          disabled={isSearching}
         >
-          Search
+          {isSearching ? "Searching..." : "Search"}
         </button>
       </div>
 
       <div className="create-appointment-results">
-        {filteredBusinesses.length === 0 ? (
+        {error ? (
+          <div className="create-appointment-empty">{error}</div>
+        ) : isSearching ? (
+          <div className="create-appointment-empty">Searching businesses...</div>
+        ) : businesses.length === 0 ? (
           <div className="create-appointment-empty">
             No businesses found for the selected filters.
           </div>
         ) : (
-          filteredBusinesses.map((business) => (
+          businesses.map((business) => (
             <div key={business.id} className="business-card">
               <div className="business-card-header">
                 <div className="business-card-logo">✂</div>

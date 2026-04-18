@@ -2,6 +2,7 @@ import { formatSummaryDate } from "../utils/createAppointment.utils";
 import type { ServiceItem, StaffMember } from "../types/createAppointment.types";
 
 type CustomerInfoStepProps = {
+  isLoggedIn: boolean;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -16,11 +17,13 @@ type CustomerInfoStepProps = {
   onCustomerPhoneChange: (value: string) => void;
   onCustomerNotesChange: (value: string) => void;
   onAcceptedPolicyChange: (value: boolean) => void;
+  onLoginClick: () => void;
   onBack: () => void;
   onFinish: () => void;
 };
 
 export default function CustomerInfoStep({
+  isLoggedIn,
   customerName,
   customerEmail,
   customerPhone,
@@ -35,6 +38,7 @@ export default function CustomerInfoStep({
   onCustomerPhoneChange,
   onCustomerNotesChange,
   onAcceptedPolicyChange,
+  onLoginClick,
   onBack,
   onFinish,
 }: CustomerInfoStepProps) {
@@ -50,9 +54,16 @@ export default function CustomerInfoStep({
         <div className="info-section">
           <div className="info-section-header">
             <h2 className="create-appointment-section-title">Your Info</h2>
-            <button type="button" className="login-link-btn">
-              Log in
-            </button>
+
+            {!isLoggedIn && (
+              <button
+                type="button"
+                className="login-link-btn"
+                onClick={onLoginClick}
+              >
+                Log in
+              </button>
+            )}
           </div>
 
           <div className="info-form">

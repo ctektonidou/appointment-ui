@@ -44,18 +44,11 @@ function getStoredUserRole(): UserRole {
   return "customer";
 }
 
-function getIndustryLabel(industryId: number | null): string {
-  const found = INDUSTRY_OPTIONS.find(
-    (option) => option.value !== "" && Number(option.value) === industryId
-  );
-  return found?.label ?? "Unknown industry";
-}
-
-function toBusinessCard(business: BusinessResponse): BusinessCard {
+export function toBusinessCard(business: BusinessResponse): BusinessCard {
   return {
     id: business.id,
     name: business.name,
-    category: getIndustryLabel(business.industryId),
+    category: business.industryName ?? "Unknown industry",
     location: business.location || "Location not available",
     openHours: "Not available yet",
     services: "Available on next step",

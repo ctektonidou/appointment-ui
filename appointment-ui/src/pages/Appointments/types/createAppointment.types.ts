@@ -2,6 +2,11 @@ export type UserRole = "owner" | "staff" | "customer";
 
 export type StepKey = 1 | 2 | 3 | 4;
 
+export type SelectOption = {
+  value: string;
+  label: string;
+};
+
 export type BusinessCard = {
   id: number;
   name: string;

@@ -7,40 +7,33 @@ import {
   type BusinessResponse,
 } from "../../api/businessApi";
 import { listServices, type Service } from "../../api/services";
+import { listStaff, type Staff } from "../../api/staff";
+import { getAvailableTimeSlots, createAppointment } from "../../api/appointments";
 
-type UserRole = "owner" | "staff" | "customer";
+import BusinessSelectionStep from "./components/BusinessSelectionStep";
+import ServiceSelectionStep from "./components/ServiceSelectionStep";
+import DateTimeSelectionStep from "./components/DateTimeSelectionStep";
+import CustomerInfoStep from "./components/CustomerInfoStep";
+import CreateAppointmentStepper from "./components/CreateAppointmentStepper";
+import { getStaff } from "../../api/staff";
 
-type StepKey = 1 | 2 | 3 | 4;
+import {
+  createDateOnly,
+  formatSummaryDate,
+  getStoredUserRole,
+} from "./utils/createAppointment.utils";
 
-type BusinessCard = {
-  id: number;
-  name: string;
-  category: string;
-  location: string;
-  openHours: string;
-  services: string;
-};
+import type {
+  AppointmentFilters,
+  BusinessCard,
+  SelectOption,
+  ServiceItem,
+  StaffMember,
+  StepKey,
+  UserRole,
+} from "./types/createAppointment.types";
 
-type ServiceItem = {
-  id: number;
-  businessId: number;
-  name: string;
-  durationMinutes: number;
-  price: number;
-};
-
-type StaffMember = {
-  id: number;
-  name: string;
-};
-
-type AppointmentFilters = {
-  industry: string;
-  location: string;
-  searchName: string;
-};
-
-const INDUSTRY_OPTIONS = [
+const INDUSTRY_OPTIONS: SelectOption[] = [
   { value: "", label: "All industries" },
   { value: "1", label: "Hair Salon" },
   { value: "2", label: "Barber Shop" },
@@ -50,54 +43,20 @@ const INDUSTRY_OPTIONS = [
   { value: "6", label: "Physiotherapy" },
 ];
 
-const LOCATION_OPTIONS = [
-  "All locations",
-  "Thessaloniki - Center",
-  "Thessaloniki - East",
-  "Thessaloniki - West",
-  "Kalamaria",
-  "Toumba",
+const LOCATION_OPTIONS: SelectOption[] = [
+  { value: "All locations", label: "All locations" },
+  { value: "Thessaloniki - Center", label: "Thessaloniki - Center" },
+  { value: "Thessaloniki - East", label: "Thessaloniki - East" },
+  { value: "Thessaloniki - West", label: "Thessaloniki - West" },
+  { value: "Kalamaria", label: "Kalamaria" },
+  { value: "Toumba", label: "Toumba" },
 ];
-
-const DEMO_STAFF: StaffMember[] = [
-  { id: 1, name: "John Smith" },
-  { id: 2, name: "Anna Brown" },
-  { id: 3, name: "Maria Green" },
-];
-
-const BASE_TIME_SLOTS = [
-  "09:00",
-  "09:30",
-  "10:00",
-  "10:30",
-  "11:00",
-  "11:30",
-  "12:00",
-  "12:30",
-  "13:00",
-  "13:30",
-  "14:00",
-  "14:30",
-  "15:00",
-  "15:30",
-  "16:00",
-  "16:30",
-  "17:00",
-  "17:30",
-];
-
-function getStoredUserRole(): UserRole {
-  const storedRole = localStorage.getItem("userRole");
-
-  if (storedRole === "business" || storedRole === "owner") return "owner";
-  if (storedRole === "staff") return "staff";
-  return "customer";
-}
 
 function getIndustryLabel(industryId: number | null): string {
   const found = INDUSTRY_OPTIONS.find(
     (option) => option.value !== "" && Number(option.value) === industryId
   );
+
   return found?.label ?? "Unknown industry";
 }
 
@@ -122,86 +81,56 @@ function toServiceItem(service: Service): ServiceItem {
   };
 }
 
-function getDaysInMonth(year: number, monthIndex: number) {
-  return new Date(year, monthIndex + 1, 0).getDate();
+function toStaffMember(staff: Staff): StaffMember {
+  const fullName = `${staff.firstName ?? ""} ${staff.lastName ?? ""}`.trim();
+
+  return {
+    id: staff.id,
+    name: fullName || staff.email || `Staff #${staff.id}`,
+  };
 }
 
-function getFirstDayOffsetSundayFirst(year: number, monthIndex: number) {
-  return new Date(year, monthIndex, 1).getDay();
+function formatDateForApi(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-function formatSummaryDate(date: Date | null) {
-  if (!date) return "";
-  return date.toLocaleDateString("en-GB");
-}
+function buildAppointmentDateTime(date: Date, time: string): Date {
+  const [hours, minutes] = time.split(":").map(Number);
 
-function buildMonthGrid(year: number, monthIndex: number) {
-  const totalDays = getDaysInMonth(year, monthIndex);
-  const startOffset = getFirstDayOffsetSundayFirst(year, monthIndex);
-
-  const cells: Array<number | null> = [];
-
-  for (let i = 0; i < startOffset; i++) {
-    cells.push(null);
-  }
-
-  for (let d = 1; d <= totalDays; d++) {
-    cells.push(d);
-  }
-
-  return cells;
-}
-
-function getMonthName(date: Date) {
-  return date.toLocaleString("en-US", { month: "long" });
-}
-
-function createDateOnly(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function isSameDay(a: Date | null, b: Date | null) {
-  if (!a || !b) return false;
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    hours,
+    minutes,
+    0,
+    0
   );
 }
 
-// demo async fetch for slots
-async function getAvailableTimeSlots(params: {
-  businessId: number;
-  serviceId: number;
-  staffId: number;
-  date: Date;
-}): Promise<string[]> {
-  const { staffId, date } = params;
+function toLocalDateTimeString(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  const hours = `${date.getHours()}`.padStart(2, "0");
+  const minutes = `${date.getMinutes()}`.padStart(2, "0");
+  const seconds = `${date.getSeconds()}`.padStart(2, "0");
 
-  await new Promise((resolve) => setTimeout(resolve, 350));
-
-  const dayOfMonth = date.getDate();
-
-  if (staffId === 1) {
-    return BASE_TIME_SLOTS.filter((_, index) => (index + dayOfMonth) % 4 !== 0);
-  }
-
-  if (staffId === 2) {
-    return BASE_TIME_SLOTS.filter((_, index) => (index + dayOfMonth) % 3 !== 0);
-  }
-
-  return BASE_TIME_SLOTS.filter((_, index) => (index + dayOfMonth) % 5 !== 0);
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
 export default function CreateAppointmentPage() {
   const location = useLocation();
-  const role = getStoredUserRole();
+  const role: UserRole = getStoredUserRole();
 
   const navigationState = location.state as
     | {
-        step?: StepKey;
-        selectedBusiness?: BusinessCard;
-      }
+      step?: StepKey;
+      selectedBusiness?: BusinessCard;
+    }
     | undefined;
 
   const isCustomer = role === "customer";
@@ -237,31 +166,29 @@ export default function CreateAppointmentPage() {
 
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
 
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [isLoadingStaff, setIsLoadingStaff] = useState(false);
+  const [staffError, setStaffError] = useState("");
+
   const [selectedStaffId, setSelectedStaffId] = useState<number | "">("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(today);
   const [selectedTime, setSelectedTime] = useState("");
 
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [slotsError, setSlotsError] = useState("");
 
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
-
-  const visibleMonthDate = selectedDate ?? today;
-  const calendarMonthIndex = visibleMonthDate.getMonth();
-  const calendarYear = visibleMonthDate.getFullYear();
-
-  const monthGrid = useMemo(
-    () => buildMonthGrid(calendarYear, calendarMonthIndex),
-    [calendarYear, calendarMonthIndex]
-  );
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isSubmittingAppointment, setIsSubmittingAppointment] = useState(false);
 
   const selectedStaff = useMemo(() => {
-    return DEMO_STAFF.find((staff) => staff.id === selectedStaffId) || null;
-  }, [selectedStaffId]);
+    return staffMembers.find((staff) => staff.id === selectedStaffId) || null;
+  }, [staffMembers, selectedStaffId]);
 
   async function runBusinessSearch(filters?: AppointmentFilters) {
     const activeFilters = filters ?? {
@@ -295,6 +222,48 @@ export default function CreateAppointmentPage() {
       setIsSearchingBusinesses(false);
     }
   }
+
+  useEffect(() => {
+    async function prefillLoggedInUser() {
+      const storedUserId = localStorage.getItem("userId");
+      const storedAuthUser = localStorage.getItem("authUser");
+      const storedUserEmail = localStorage.getItem("userEmail");
+
+      setIsLoggedIn(!!storedUserId);
+
+      if (!storedAuthUser) {
+        if (storedUserEmail) {
+          setCustomerEmail((prev) => prev || storedUserEmail);
+        }
+        return;
+      }
+
+      try {
+        const authUser = JSON.parse(storedAuthUser);
+
+        const fullName = [authUser.firstName, authUser.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+
+        setCustomerName((prev) => prev || fullName || "");
+        setCustomerEmail((prev) => prev || authUser.email || storedUserEmail || "");
+
+        if (authUser.role === "staff" && authUser.businessId && authUser.staffId) {
+          const staff = await getStaff(authUser.businessId, authUser.staffId);
+          setCustomerPhone((prev) => prev || staff.phone || "");
+        }
+      } catch (error) {
+        console.error("Failed to prefill logged-in user", error);
+
+        if (storedUserEmail) {
+          setCustomerEmail((prev) => prev || storedUserEmail);
+        }
+      }
+    }
+
+    prefillLoggedInUser();
+  }, []);
 
   useEffect(() => {
     if (!isCustomer) return;
@@ -340,6 +309,38 @@ export default function CreateAppointmentPage() {
   }, [selectedBusiness, currentStep]);
 
   useEffect(() => {
+    async function loadStaff() {
+      if (!selectedBusiness) {
+        setStaffMembers([]);
+        setStaffError("");
+        setSelectedStaffId("");
+        return;
+      }
+
+      if (currentStep !== 3) {
+        return;
+      }
+
+      setIsLoadingStaff(true);
+      setStaffError("");
+
+      try {
+        const results = await listStaff(selectedBusiness.id, true);
+        setStaffMembers(results.map(toStaffMember));
+      } catch (error) {
+        setStaffMembers([]);
+        setStaffError(
+          error instanceof Error ? error.message : "Failed to load staff"
+        );
+      } finally {
+        setIsLoadingStaff(false);
+      }
+    }
+
+    loadStaff();
+  }, [selectedBusiness, currentStep]);
+
+  useEffect(() => {
     if (currentStep !== 3) return;
 
     if (!selectedDate) {
@@ -348,40 +349,56 @@ export default function CreateAppointmentPage() {
   }, [currentStep, selectedDate, today]);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadSlots() {
-      if (
-        currentStep !== 3 ||
-        !selectedBusiness ||
-        !selectedService ||
-        !selectedDate ||
-        !selectedStaffId
-      ) {
+      if (!selectedBusiness || !selectedService || !selectedDate || !selectedStaffId) {
         setAvailableTimeSlots([]);
         setSelectedTime("");
+        setSlotsError("");
+        return;
+      }
+
+      if (currentStep !== 3) {
         return;
       }
 
       setIsLoadingSlots(true);
       setSelectedTime("");
+      setSlotsError("");
 
       try {
         const slots = await getAvailableTimeSlots({
           businessId: selectedBusiness.id,
           serviceId: selectedService.id,
           staffId: selectedStaffId,
-          date: selectedDate,
+          date: formatDateForApi(selectedDate),
         });
 
-        setAvailableTimeSlots(slots);
+        if (!cancelled) {
+          setAvailableTimeSlots(slots);
+        }
       } catch (error) {
-        console.error("Failed to load time slots", error);
-        setAvailableTimeSlots([]);
+        if (!cancelled) {
+          setAvailableTimeSlots([]);
+          setSlotsError(
+            error instanceof Error
+              ? error.message
+              : "Failed to load available time slots"
+          );
+        }
       } finally {
-        setIsLoadingSlots(false);
+        if (!cancelled) {
+          setIsLoadingSlots(false);
+        }
       }
     }
 
     loadSlots();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     currentStep,
     selectedBusiness,
@@ -407,6 +424,7 @@ export default function CreateAppointmentPage() {
     setSelectedStaffId("");
     setSelectedTime("");
     setAvailableTimeSlots([]);
+    setStaffMembers([]);
     setServicesForSelectedBusiness([]);
     setCurrentStep(2);
   }
@@ -446,6 +464,7 @@ export default function CreateAppointmentPage() {
       setSelectedDate(today);
     }
 
+    setSelectedStaffId("");
     setSelectedTime("");
     setAvailableTimeSlots([]);
     setCurrentStep(3);
@@ -456,205 +475,109 @@ export default function CreateAppointmentPage() {
     setCurrentStep(4);
   }
 
-  function onFinishAppointment() {
-    if (!acceptedPolicy) return;
+  async function onFinishAppointment() {
+    if (
+      !acceptedPolicy ||
+      !selectedBusiness ||
+      !selectedService ||
+      !selectedDate ||
+      !selectedTime ||
+      !selectedStaffId
+    ) {
+      return;
+    }
 
-    console.log("Appointment created", {
-      selectedBusiness,
-      selectedService,
-      selectedDate,
-      selectedTime,
-      selectedStaff,
-      customerName,
-      customerEmail,
-      customerPhone,
-      customerNotes,
-    });
+    setIsSubmittingAppointment(true);
 
-    alert("Appointment created successfully (demo)");
+    try {
+      const startDateTime = buildAppointmentDateTime(selectedDate, selectedTime);
+      const endDateTime = new Date(
+        startDateTime.getTime() + selectedService.durationMinutes * 60 * 1000
+      );
+
+      const storedUserId = localStorage.getItem("userId");
+      const customerUserId = storedUserId ? Number(storedUserId) : null;
+
+      const payload = {
+        serviceId: selectedService.id,
+        staffId: selectedStaffId,
+        customerUserId,
+        clientName: customerName.trim(),
+        clientEmail: customerEmail.trim() || null,
+        clientPhone: customerPhone.trim() || null,
+        clientNotes: customerNotes.trim() || null,
+        startTime: toLocalDateTimeString(startDateTime),
+        endTime: toLocalDateTimeString(endDateTime),
+      };
+
+      const created = await createAppointment(selectedBusiness.id, payload);
+
+      console.log("Appointment created successfully", created);
+      alert("Appointment created successfully");
+
+      setCurrentStep(1);
+      setSelectedBusiness(null);
+      setSelectedService(null);
+      setSelectedStaffId("");
+      setSelectedDate(today);
+      setSelectedTime("");
+      setAvailableTimeSlots([]);
+      setCustomerNotes("");
+      setAcceptedPolicy(false);
+
+      if (!isLoggedIn) {
+        setCustomerName("");
+        setCustomerEmail("");
+        setCustomerPhone("");
+      }
+
+      runBusinessSearch({
+        industry: "",
+        location: "All locations",
+        searchName: "",
+      });
+    } catch (error) {
+      console.error("Failed to create appointment", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to create appointment"
+      );
+    } finally {
+      setIsSubmittingAppointment(false);
+    }
   }
 
   return (
     <div className="create-appointment-page">
       <h1 className="create-appointment-title">Create Appointment</h1>
 
-      <div className="create-appointment-steps">
-        <div className="create-appointment-step">
-          <button
-            type="button"
-            className={`create-appointment-step-circle ${
-              currentStep === 1 ? "" : "create-appointment-step-circle--inactive"
-            }`}
-            onClick={() => goToStep(1)}
-          >
-            1
-          </button>
-          <div className="create-appointment-step-label">Business</div>
-        </div>
-
-        <div className="create-appointment-step-line" />
-
-        <div className="create-appointment-step">
-          <button
-            type="button"
-            className={`create-appointment-step-circle ${
-              currentStep === 2 ? "" : "create-appointment-step-circle--inactive"
-            }`}
-            onClick={() => goToStep(2)}
-          >
-            2
-          </button>
-          <div className="create-appointment-step-label">Service</div>
-        </div>
-
-        <div className="create-appointment-step-line" />
-
-        <div className="create-appointment-step">
-          <button
-            type="button"
-            className={`create-appointment-step-circle ${
-              currentStep === 3 ? "" : "create-appointment-step-circle--inactive"
-            }`}
-            onClick={() => goToStep(3)}
-          >
-            3
-          </button>
-          <div className="create-appointment-step-label">Date &amp; Time</div>
-        </div>
-
-        <div className="create-appointment-step-line" />
-
-        <div className="create-appointment-step">
-          <button
-            type="button"
-            className={`create-appointment-step-circle ${
-              currentStep === 4 ? "" : "create-appointment-step-circle--inactive"
-            }`}
-            onClick={() => goToStep(4)}
-          >
-            4
-          </button>
-          <div className="create-appointment-step-label">Your Info</div>
-        </div>
-      </div>
+      <CreateAppointmentStepper
+        currentStep={currentStep}
+        onStepClick={goToStep}
+      />
 
       <section className="create-appointment-card">
         {currentStep === 1 && (
-          <>
-            <h2 className="create-appointment-section-title">Find a Business</h2>
-
-            <div className="create-appointment-filters">
-              <div className="create-appointment-field">
-                <label className="create-appointment-label">Industry</label>
-                <select
-                  className="create-appointment-select"
-                  value={industry}
-                  onChange={(e) => setIndustry(e.target.value)}
-                >
-                  {INDUSTRY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="create-appointment-field">
-                <label className="create-appointment-label">Location - Town</label>
-                <select
-                  className="create-appointment-select"
-                  value={locationFilter}
-                  onChange={(e) => setLocationFilter(e.target.value)}
-                >
-                  {LOCATION_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="create-appointment-field create-appointment-field--name">
-                <label className="create-appointment-label">Name</label>
-                <input
-                  className="create-appointment-input"
-                  type="text"
-                  value={searchName}
-                  onChange={(e) => setSearchName(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="create-appointment-search-row">
-              <button
-                type="button"
-                className="create-appointment-search-btn"
-                onClick={onSearch}
-                disabled={isSearchingBusinesses}
-              >
-                {isSearchingBusinesses ? "Searching..." : "Search"}
-              </button>
-            </div>
-
-            <div className="create-appointment-results">
-              {businessesError ? (
-                <div className="create-appointment-empty">{businessesError}</div>
-              ) : isSearchingBusinesses ? (
-                <div className="create-appointment-empty">
-                  Searching businesses...
-                </div>
-              ) : businesses.length === 0 ? (
-                <div className="create-appointment-empty">
-                  No businesses found for the selected filters.
-                </div>
-              ) : (
-                businesses.map((business) => (
-                  <div key={business.id} className="business-card">
-                    <div className="business-card-header">
-                      <div className="business-card-logo">✂</div>
-
-                      <div className="business-card-title-wrap">
-                        <div className="business-card-title">{business.name}</div>
-                        <div className="business-card-category">{business.category}</div>
-                      </div>
-                    </div>
-
-                    <div className="business-card-divider" />
-
-                    <div className="business-card-details">
-                      <div className="business-card-detail-row">
-                        <span className="business-card-detail-icon">📍</span>
-                        <span>{business.location}</span>
-                      </div>
-
-                      <div className="business-card-detail-row">
-                        <span className="business-card-detail-icon">🕒</span>
-                        <span>Open today: {business.openHours}</span>
-                      </div>
-
-                      <div className="business-card-services">
-                        Services: {business.services}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="business-card-btn"
-                      onClick={() => onViewServices(business)}
-                    >
-                      View Services
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </>
+          <BusinessSelectionStep
+            industry={industry}
+            locationFilter={locationFilter}
+            searchName={searchName}
+            industryOptions={INDUSTRY_OPTIONS}
+            locationOptions={LOCATION_OPTIONS}
+            businesses={businesses}
+            isSearching={isSearchingBusinesses}
+            error={businessesError}
+            onIndustryChange={setIndustry}
+            onLocationChange={setLocationFilter}
+            onSearchNameChange={setSearchName}
+            onSearch={onSearch}
+            onViewServices={onViewServices}
+          />
         )}
 
         {currentStep === 2 && (
           <>
-            <h2 className="create-appointment-section-title">Choose Service</h2>
-
             {selectedBusiness && (
               <div className="create-appointment-selected-business">
                 Business: <strong>{selectedBusiness.name}</strong>
@@ -670,309 +593,59 @@ export default function CreateAppointmentPage() {
                 No active services found for this business.
               </div>
             ) : (
-              <div className="service-grid">
-                {servicesForSelectedBusiness.map((service) => (
-                  <button
-                    key={service.id}
-                    type="button"
-                    className={
-                      selectedService?.id === service.id
-                        ? "service-card service-card--selected"
-                        : "service-card"
-                    }
-                    onClick={() => setSelectedService(service)}
-                  >
-                    <div className="service-card-title">{service.name}</div>
-                    <div className="service-card-text">
-                      Duration: {service.durationMinutes} minutes
-                    </div>
-                    <div className="service-card-price">{service.price} euros</div>
-                  </button>
-                ))}
-              </div>
+              <ServiceSelectionStep
+                services={servicesForSelectedBusiness}
+                selectedService={selectedService}
+                onSelectService={setSelectedService}
+                onBack={() => setCurrentStep(1)}
+                onContinue={onContinueFromService}
+              />
             )}
-
-            <div className="create-appointment-actions">
-              <button
-                type="button"
-                className="create-appointment-secondary-btn"
-                onClick={() => setCurrentStep(1)}
-              >
-                Back
-              </button>
-
-              <button
-                type="button"
-                className="create-appointment-primary-btn"
-                onClick={onContinueFromService}
-                disabled={!selectedService || isLoadingServices}
-              >
-                Continue
-              </button>
-            </div>
           </>
         )}
 
         {currentStep === 3 && (
           <>
-            <h2 className="create-appointment-section-title">Choose Date &amp; Time</h2>
-
-            <div className="date-time-layout">
-              <div className="date-time-left">
-                <div className="simple-calendar">
-                  <div className="simple-calendar-header">
-                    <span>{getMonthName(visibleMonthDate)}</span>
-                    <span>{calendarYear}</span>
-                  </div>
-
-                  <div className="simple-calendar-weekdays">
-                    {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-                      <div key={day} className="simple-calendar-weekday">
-                        {day}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="simple-calendar-grid">
-                    {monthGrid.map((cell, index) => {
-                      const cellDate =
-                        cell === null
-                          ? null
-                          : new Date(calendarYear, calendarMonthIndex, cell);
-
-                      const isSelected =
-                        cellDate !== null && isSameDay(selectedDate, cellDate);
-                      const isToday =
-                        cellDate !== null && isSameDay(today, cellDate);
-
-                      return (
-                        <button
-                          key={`${cell}-${index}`}
-                          type="button"
-                          className={
-                            cell === null
-                              ? "simple-calendar-day simple-calendar-day--empty"
-                              : isSelected
-                              ? "simple-calendar-day simple-calendar-day--selected"
-                              : isToday
-                              ? "simple-calendar-day simple-calendar-day--today"
-                              : "simple-calendar-day"
-                          }
-                          disabled={cell === null}
-                          onClick={() => {
-                            if (cellDate === null) return;
-                            setSelectedDate(cellDate);
-                          }}
-                        >
-                          {cell ?? ""}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="select-time-section">
-                  <div className="select-time-title">Select Time</div>
-
-                  {!selectedStaffId && (
-                    <div className="create-appointment-empty">
-                      Select staff first to load available times.
-                    </div>
-                  )}
-
-                  {selectedStaffId && isLoadingSlots && (
-                    <div className="create-appointment-empty">
-                      Loading available times...
-                    </div>
-                  )}
-
-                  {selectedStaffId &&
-                    !isLoadingSlots &&
-                    availableTimeSlots.length === 0 && (
-                      <div className="create-appointment-empty">
-                        No available time slots for the selected date.
-                      </div>
-                    )}
-
-                  {selectedStaffId &&
-                    !isLoadingSlots &&
-                    availableTimeSlots.length > 0 && (
-                      <div className="time-slot-grid">
-                        {availableTimeSlots.map((slot) => (
-                          <button
-                            key={slot}
-                            type="button"
-                            className={
-                              selectedTime === slot
-                                ? "time-slot-btn time-slot-btn--selected"
-                                : "time-slot-btn"
-                            }
-                            onClick={() => setSelectedTime(slot)}
-                          >
-                            {slot}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                </div>
-              </div>
-
-              <div className="date-time-right">
-                <div className="create-appointment-field">
-                  <label className="create-appointment-label">Select Staff</label>
-                  <select
-                    className="create-appointment-select"
-                    value={selectedStaffId}
-                    onChange={(e) =>
-                      setSelectedStaffId(
-                        e.target.value === "" ? "" : Number(e.target.value)
-                      )
-                    }
-                  >
-                    <option value="">Select staff</option>
-                    {DEMO_STAFF.map((staff) => (
-                      <option key={staff.id} value={staff.id}>
-                        {staff.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="create-appointment-actions">
-              <button
-                type="button"
-                className="create-appointment-secondary-btn"
-                onClick={() => setCurrentStep(2)}
-              >
-                Back
-              </button>
-
-              <button
-                type="button"
-                className="create-appointment-primary-btn"
-                onClick={onContinueFromDateTime}
-                disabled={!selectedDate || !selectedTime || !selectedStaffId}
-              >
-                Continue
-              </button>
-            </div>
+            <DateTimeSelectionStep
+              today={today}
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+              selectedStaffId={selectedStaffId}
+              availableTimeSlots={availableTimeSlots}
+              isLoadingSlots={isLoadingSlots}
+              staffMembers={staffMembers}
+              onDateChange={setSelectedDate}
+              onTimeChange={setSelectedTime}
+              onStaffChange={setSelectedStaffId}
+              onBack={() => setCurrentStep(2)}
+              onContinue={onContinueFromDateTime}
+            />
           </>
         )}
 
         {currentStep === 4 && (
-          <>
-            <div className="info-summary-layout">
-              <div className="info-section">
-                <div className="info-section-header">
-                  <h2 className="create-appointment-section-title">Your Info</h2>
-                  <button type="button" className="login-link-btn">
-                    Log in
-                  </button>
-                </div>
-
-                <div className="info-form">
-                  <div className="create-appointment-field">
-                    <label className="create-appointment-info-label">name</label>
-                    <input
-                      className="create-appointment-input create-appointment-input--wide"
-                      type="text"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="create-appointment-field">
-                    <label className="create-appointment-info-label">email</label>
-                    <input
-                      className="create-appointment-input create-appointment-input--wide"
-                      type="email"
-                      value={customerEmail}
-                      onChange={(e) => setCustomerEmail(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="create-appointment-field">
-                    <label className="create-appointment-info-label">phone</label>
-                    <input
-                      className="create-appointment-input create-appointment-input--wide"
-                      type="text"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="create-appointment-field">
-                    <label className="create-appointment-info-label">notes</label>
-                    <textarea
-                      className="create-appointment-textarea"
-                      value={customerNotes}
-                      onChange={(e) => setCustomerNotes(e.target.value)}
-                    />
-                  </div>
-
-                  <label className="agreement-check">
-                    <input
-                      type="checkbox"
-                      checked={acceptedPolicy}
-                      onChange={(e) => setAcceptedPolicy(e.target.checked)}
-                    />
-                    <span>I agree to the processing of my personal data.</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="summary-section">
-                <h2 className="create-appointment-section-title">Summary</h2>
-
-                <div className="summary-card">
-                  <div className="summary-card-title">
-                    {selectedService?.name || "-"}
-                  </div>
-                  <div className="summary-card-text">
-                    Duration: {selectedService?.durationMinutes ?? "-"} minutes
-                  </div>
-                  <div className="summary-card-price">
-                    {selectedService?.price ?? "-"} euros
-                  </div>
-
-                  <div className="summary-card-datetime">
-                    {formatSummaryDate(selectedDate)} {selectedTime}
-                  </div>
-
-                  <div className="summary-card-staff-row">
-                    <span className="summary-card-staff-label">Staff</span>
-                    <span>{selectedStaff?.name || "-"}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="create-appointment-actions">
-              <button
-                type="button"
-                className="create-appointment-secondary-btn"
-                onClick={() => setCurrentStep(3)}
-              >
-                Back
-              </button>
-
-              <button
-                type="button"
-                className="create-appointment-primary-btn"
-                onClick={onFinishAppointment}
-                disabled={
-                  !customerName.trim() ||
-                  !customerEmail.trim() ||
-                  !customerPhone.trim() ||
-                  !acceptedPolicy
-                }
-              >
-                Finish
-              </button>
-            </div>
-          </>
+          <CustomerInfoStep
+            isLoggedIn={isLoggedIn}
+            customerName={customerName}
+            customerEmail={customerEmail}
+            customerPhone={customerPhone}
+            customerNotes={customerNotes}
+            acceptedPolicy={acceptedPolicy}
+            selectedService={selectedService}
+            selectedDate={selectedDate}
+            selectedTime={selectedTime}
+            selectedStaff={selectedStaff}
+            onCustomerNameChange={setCustomerName}
+            onCustomerEmailChange={setCustomerEmail}
+            onCustomerPhoneChange={setCustomerPhone}
+            onCustomerNotesChange={setCustomerNotes}
+            onAcceptedPolicyChange={setAcceptedPolicy}
+            onLoginClick={() => {
+              console.log("Open login modal here");
+            }}
+            onBack={() => setCurrentStep(3)}
+            onFinish={onFinishAppointment}
+          />
         )}
       </section>
     </div>
