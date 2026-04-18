@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import {
   login,
@@ -8,6 +8,10 @@ import {
 } from "../../api/authApi";
 import "./AuthModal.css";
 import { useNavigate } from "react-router-dom";
+import {
+  listPublicIndustries,
+  type IndustryResponse,
+} from "../../api/publicMetadata";
 
 export type AuthModalRole = "customer" | "staff" | "business";
 
@@ -94,6 +98,21 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+ const [industryOptions, setIndustryOptions] = useState<IndustryResponse[]>([]);
+
+  useEffect(() => {
+    async function loadIndustries() {
+      try {
+        const industries = await listPublicIndustries();
+        setIndustryOptions(industries);
+      } catch (error) {
+        console.error("Failed to load industries", error);
+      }
+    }
+
+    loadIndustries();
+  }, []);
 
   async function onCustomerLoginSubmit(e: FormEvent) {
     e.preventDefault();
@@ -276,7 +295,7 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
         ownerEmail: businessSignupEmail,
         password: businessSignupPassword,
         businessName: businessSignupName,
-        industryId: businessSignupCategory,
+        industryId: Number(businessSignupCategory),
         phone: businessSignupPhone,
         businessEmail: businessSignupEmail,
         timezone: businessSignupTimezone,
@@ -671,12 +690,11 @@ export default function AuthModal({ role, onClose }: AuthModalProps) {
                     onChange={(e) => setBusinessSignupCategory(e.target.value)}
                   >
                     <option value="">select industry</option>
-                    <option value="1">Hair Salon</option>
-                    <option value="2">Barber Shop</option>
-                    <option value="3">Spa</option>
-                    <option value="4">Nails</option>
-                    <option value="5">Massage</option>
-                    <option value="6">Physiotherapy</option>
+                    {industryOptions.map((industry) => (
+                      <option key={industry.id} value={String(industry.id)}>
+                        {industry.industryName}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

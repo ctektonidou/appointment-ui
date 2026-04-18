@@ -26,7 +26,7 @@ export type BusinessSignupRequest = {
   ownerEmail: string;
   password: string;
   businessName: string;
-  industryId: string;
+  industryId: number;
   phone: string;
   businessEmail: string;
   timezone: string;

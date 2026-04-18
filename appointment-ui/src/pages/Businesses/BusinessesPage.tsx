@@ -6,6 +6,12 @@ import {
 } from "../../api/businessApi";
 import "./BusinessesPage.css";
 
+import {
+  listPublicIndustries,
+  listPublicLocations,
+  type IndustryResponse,
+} from "../../api/publicMetadata";
+
 type UserRole = "owner" | "staff" | "customer";
 
 type BusinessCard = {
@@ -17,24 +23,10 @@ type BusinessCard = {
   services: string;
 };
 
-const INDUSTRY_OPTIONS = [
-  { value: "", label: "All industries" },
-  { value: "1", label: "Hair Salon" },
-  { value: "2", label: "Barber Shop" },
-  { value: "4", label: "Nails" },
-  { value: "3", label: "Spa" },
-  { value: "5", label: "Massage" },
-  { value: "6", label: "Physiotherapy" },
-];
-
-const LOCATION_OPTIONS = [
-  "All locations",
-  "Thessaloniki - Center",
-  "Thessaloniki - East",
-  "Thessaloniki - West",
-  "Kalamaria",
-  "Toumba",
-];
+type SelectOption = {
+  value: string;
+  label: string;
+};
 
 function getStoredUserRole(): UserRole {
   const storedRole = localStorage.getItem("userRole");
@@ -73,6 +65,14 @@ export default function BusinessesPage() {
   const [businesses, setBusinesses] = useState<BusinessCard[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const [industryOptions, setIndustryOptions] = useState<SelectOption[]>([
+    { value: "", label: "All industries" },
+  ]);
+
+  const [locationOptions, setLocationOptions] = useState<string[]>([
+    "All locations",
+  ]);
 
   async function runSearch(filters?: {
     industry: string;
@@ -124,6 +124,31 @@ export default function BusinessesPage() {
     runSearch(initialFilters);
   }, [isCustomer]);
 
+  useEffect(() => {
+    async function loadMetadata() {
+      try {
+        const [industries, locations] = await Promise.all([
+          listPublicIndustries(),
+          listPublicLocations(),
+        ]);
+
+        setIndustryOptions([
+          { value: "", label: "All industries" },
+          ...industries.map((item: IndustryResponse) => ({
+            value: String(item.id),
+            label: item.industryName,
+          })),
+        ]);
+
+        setLocationOptions(["All locations", ...locations]);
+      } catch (error) {
+        console.error("Failed to load metadata", error);
+      }
+    }
+
+    loadMetadata();
+  }, []);
+
   function onSearch() {
     const nextFilters = {
       industry,
@@ -166,7 +191,7 @@ export default function BusinessesPage() {
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
             >
-              {INDUSTRY_OPTIONS.map((option) => (
+              {industryOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -181,7 +206,7 @@ export default function BusinessesPage() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             >
-              {LOCATION_OPTIONS.map((option) => (
+              {locationOptions.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>

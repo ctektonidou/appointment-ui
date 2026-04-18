@@ -4,12 +4,15 @@ import {
   searchOwnerAppointments,
   searchStaffAppointments,
   searchCustomerAppointments,
-  type AppointmentListItem,
+  type AppointmentListItemResponse,
+  type AppointmentStatus,
 } from "../../api/appointments";
 import "./AppointmentsPage.css";
+import { getPrimaryBusinessByOwnerUserId } from "../../api/businessApi";
+import { listStaff, type Staff } from "../../api/staff";
 
 type UserRole = "owner" | "staff" | "customer";
-type StatusFilter = "ALL" | "SCHEDULED" | "CANCELLED" | "NO_SHOW";
+type StatusFilter = "ALL" | "SCHEDULED" | "CANCELLED" | "NO_SHOW" | "COMPLETED";
 
 type Filters = {
   from: string;
@@ -49,6 +52,10 @@ function toApiDateTo(dateValue: string): string | undefined {
   return `${dateValue}T23:59:59`;
 }
 
+function toApiStatus(status: StatusFilter): AppointmentStatus | undefined {
+  return status === "ALL" ? undefined : status;
+}
+
 export default function AppointmentsPage() {
   const role: UserRole = getStoredUserRole();
 
@@ -76,10 +83,11 @@ export default function AppointmentsPage() {
     search: "",
   });
 
-  const [appointments, setAppointments] = useState<AppointmentListItem[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentListItemResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
   const [page, setPage] = useState(1);
+  const [ownerBusinessId, setOwnerBusinessId] = useState<number | null>(null);
+  const [staffOptions, setStaffOptions] = useState<Array<{ id: number; name: string }>>([]);
 
   function updateDraftFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
     setDraftFilters((prev) => ({
@@ -88,27 +96,35 @@ export default function AppointmentsPage() {
     }));
   }
 
+  function toStaffOption(staff: Staff) {
+    const fullName = `${staff.firstName ?? ""} ${staff.lastName ?? ""}`.trim();
+
+    return {
+      id: staff.id,
+      name: fullName || staff.email || `Staff #${staff.id}`,
+    };
+  }
+
   async function loadAppointments(filters: Filters) {
     const userId = getUserId();
 
     if (!userId) {
-      setErrorMessage("User id not found.");
-      setLoading(false);
+      setAppointments([]);
       return;
     }
 
     setLoading(true);
-    setErrorMessage("");
 
     try {
-      let data: AppointmentListItem[] = [];
+      let data: AppointmentListItemResponse[] = [];
 
       if (isOwner) {
         data = await searchOwnerAppointments({
           userId,
           from: toApiDateFrom(filters.from),
           to: toApiDateTo(filters.to),
-          status: filters.status,
+          status: toApiStatus(filters.status),
+          staffId: filters.staff !== "ALL" ? Number(filters.staff) : undefined,
           search: filters.search,
         });
       } else if (isStaff) {
@@ -116,7 +132,7 @@ export default function AppointmentsPage() {
           userId,
           from: toApiDateFrom(filters.from),
           to: toApiDateTo(filters.to),
-          status: filters.status,
+          status: toApiStatus(filters.status),
           search: filters.search,
         });
       } else {
@@ -124,16 +140,13 @@ export default function AppointmentsPage() {
           userId,
           from: toApiDateFrom(filters.from),
           to: toApiDateTo(filters.to),
-          status: filters.status,
+          status: toApiStatus(filters.status),
           search: filters.search,
         });
       }
 
       setAppointments(data);
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to load appointments"
-      );
       setAppointments([]);
     } finally {
       setLoading(false);
@@ -151,6 +164,32 @@ export default function AppointmentsPage() {
 
   const pageCount = Math.max(1, Math.ceil(appointments.length / PAGE_SIZE));
   const pageItems = appointments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useEffect(() => {
+    async function loadOwnerStaffOptions() {
+      if (!isOwner) return;
+
+      const userId = getUserId();
+      if (!userId) {
+        setOwnerBusinessId(null);
+        setStaffOptions([]);
+        return;
+      }
+
+      try {
+        const business = await getPrimaryBusinessByOwnerUserId(userId);
+        setOwnerBusinessId(business.id);
+
+        const staff = await listStaff(business.id, true);
+        setStaffOptions(staff.map(toStaffOption));
+      } catch (error) {
+        console.error("Failed to load owner staff options", error);
+        setOwnerBusinessId(null);
+        setStaffOptions([]);
+      }
+    }
+
+    loadOwnerStaffOptions();
+  }, [isOwner]);
 
   return (
     <div className="appointments-page">
@@ -203,6 +242,11 @@ export default function AppointmentsPage() {
                 onChange={(e) => updateDraftFilter("staff", e.target.value)}
               >
                 <option value="ALL">All Staff</option>
+                {staffOptions.map((staff) => (
+                  <option key={staff.id} value={String(staff.id)}>
+                    {staff.name}
+                  </option>
+                ))}
               </select>
             </div>
           )}
@@ -273,8 +317,6 @@ export default function AppointmentsPage() {
           </div>
         </div>
       </div>
-
-      {errorMessage && <div className="appointments-error">{errorMessage}</div>}
 
       <div className="appointments-table-wrapper">
         <table className="appointments-table">
