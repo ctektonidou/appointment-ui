@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import "./EditAppointmentModal.css";
 
+import { listStaff, type Staff } from "../../api/staff";
+import { listServices, type Service } from "../../api/services";
+import { getAvailableTimeSlots } from "../../api/appointments";
+
 type UserRole = "owner" | "staff" | "customer";
 
 export type AppointmentStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
 
 export type Appointment = {
   id: number;
+  businessId: number;
+  serviceId: number;
+  staffId: number;
+  customerUserId: number | null;
   client: string;
   staff: string;
   service: string;
@@ -15,6 +23,8 @@ export type Appointment = {
   endTime: string;
   status: AppointmentStatus;
   notes: string;
+  clientEmail?: string;
+  clientPhone?: string;
 };
 
 type StaffOption = {
@@ -29,8 +39,8 @@ type ServiceOption = {
 };
 
 type AvailableSlot = {
-  start: string; // HH:mm
-  end: string;   // HH:mm
+  start: string;
+  end: string;
 };
 
 type Props = {
@@ -47,91 +57,31 @@ const STATUS_OPTIONS: AppointmentStatus[] = [
   "NO_SHOW",
 ];
 
-/* =========================================================
-   MOCK SERVICES
-   Replace these with real API calls in the next step
-   ========================================================= */
+function toStaffOption(staff: Staff): StaffOption {
+  const fullName = `${staff.firstName ?? ""} ${staff.lastName ?? ""}`.trim();
 
-async function fetchStaffOptions(): Promise<StaffOption[]> {
-  return Promise.resolve([
-    { id: 1, name: "John Smith" },
-    { id: 2, name: "Anna Peter" },
-    { id: 3, name: "Lena Nock" },
-  ]);
+  return {
+    id: staff.id,
+    name: fullName || staff.email || `Staff #${staff.id}`,
+  };
 }
 
-async function fetchServiceOptions(): Promise<ServiceOption[]> {
-  return Promise.resolve([
-    { id: 1, name: "Haircut", durationMinutes: 60 },
-    { id: 2, name: "Beard Trim", durationMinutes: 30 },
-    { id: 3, name: "Color", durationMinutes: 120 },
-    { id: 4, name: "Styling", durationMinutes: 45 },
-  ]);
+function toServiceOption(service: Service): ServiceOption {
+  return {
+    id: service.id,
+    name: service.name,
+    durationMinutes: service.durationMinutes,
+  };
 }
 
-async function fetchAvailableSlots(params: {
-  staffName: string;
-  date: string;
-  serviceName: string;
-  appointmentId: number;
-}): Promise<AvailableSlot[]> {
-  const { staffName, date, serviceName } = params;
+function addMinutesToTime(time: string, minutesToAdd: number): string {
+  const [hours, minutes] = time.split(":").map(Number);
+  const totalMinutes = hours * 60 + minutes + minutesToAdd;
+  const nextHours = Math.floor(totalMinutes / 60);
+  const nextMinutes = totalMinutes % 60;
 
-  if (!staffName || !date || !serviceName) {
-    return Promise.resolve([]);
-  }
-
-  // Mock behavior for demo:
-  // - some days have no availability
-  // - different staff give different hours
-  const day = new Date(date).getDay(); // 0=Sun
-
-  if (day === 0) {
-    return Promise.resolve([]); // Sunday closed in mock
-  }
-
-  if (staffName === "John Smith") {
-    if (date.endsWith("-19")) return Promise.resolve([]);
-    if (serviceName === "Color") {
-      return Promise.resolve([
-        { start: "09:00", end: "11:00" },
-        { start: "12:00", end: "14:00" },
-        { start: "15:00", end: "17:00" },
-      ]);
-    }
-    return Promise.resolve([
-      { start: "09:00", end: "10:00" },
-      { start: "09:30", end: "10:30" },
-      { start: "10:00", end: "11:00" },
-      { start: "11:00", end: "12:00" },
-      { start: "13:00", end: "14:00" },
-      { start: "16:00", end: "17:00" },
-    ]);
-  }
-
-  if (staffName === "Anna Peter") {
-    if (serviceName === "Color") {
-      return Promise.resolve([
-        { start: "10:00", end: "12:00" },
-        { start: "13:00", end: "15:00" },
-      ]);
-    }
-    return Promise.resolve([
-      { start: "10:00", end: "11:00" },
-      { start: "10:30", end: "11:30" },
-      { start: "12:00", end: "13:00" },
-      { start: "14:00", end: "15:00" },
-    ]);
-  }
-
-  return Promise.resolve([
-    { start: "12:00", end: "13:00" },
-    { start: "13:00", end: "14:00" },
-    { start: "15:30", end: "16:30" },
-  ]);
+  return `${String(nextHours).padStart(2, "0")}:${String(nextMinutes).padStart(2, "0")}`;
 }
-
-/* ========================================================= */
 
 export default function EditAppointmentModal({
   appointment,
@@ -167,14 +117,19 @@ export default function EditAppointmentModal({
   );
 
   const selectedService = useMemo(
-    () => serviceOptions.find((service) => service.name === form.service) || null,
-    [serviceOptions, form.service]
+    () => serviceOptions.find((service) => service.id === form.serviceId) || null,
+    [serviceOptions, form.serviceId]
   );
 
   const selectedStartSlot = useMemo(
     () => availableSlots.find((slot) => slot.start === form.time) || null,
     [availableSlots, form.time]
   );
+
+  useEffect(() => {
+    setForm({ ...appointment });
+    setErrorMessage("");
+  }, [appointment]);
 
   useEffect(() => {
     let cancelled = false;
@@ -185,30 +140,37 @@ export default function EditAppointmentModal({
         setErrorMessage("");
 
         const [staff, services] = await Promise.all([
-          fetchStaffOptions(),
-          fetchServiceOptions(),
+          listStaff(form.businessId, true),
+          listServices(form.businessId, true),
         ]);
 
         if (cancelled) return;
 
-        setStaffOptions(staff);
-        setServiceOptions(services);
+        const mappedStaff = staff.map(toStaffOption);
+        const mappedServices = services.map(toServiceOption);
 
-        const serviceStillExists = services.some((s) => s.name === form.service);
-        if (!serviceStillExists && services.length > 0) {
-          const firstService = services[0];
+        setStaffOptions(mappedStaff);
+        setServiceOptions(mappedServices);
+
+        const staffStillExists = mappedStaff.some((item) => item.id === form.staffId);
+        if (!staffStillExists && mappedStaff.length > 0) {
+          const firstStaff = mappedStaff[0];
           setForm((prev) => ({
             ...prev,
-            service: firstService.name,
+            staffId: firstStaff.id,
+            staff: firstStaff.name,
           }));
         }
 
-        const staffStillExists = staff.some((s) => s.name === form.staff);
-        if (!staffStillExists && staff.length > 0) {
-          const firstStaff = staff[0];
+        const serviceStillExists = mappedServices.some(
+          (item) => item.id === form.serviceId
+        );
+        if (!serviceStillExists && mappedServices.length > 0) {
+          const firstService = mappedServices[0];
           setForm((prev) => ({
             ...prev,
-            staff: firstStaff.name,
+            serviceId: firstService.id,
+            service: firstService.name,
           }));
         }
       } catch (error) {
@@ -228,13 +190,13 @@ export default function EditAppointmentModal({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [form.businessId]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadAvailableSlots() {
-      if (!form.staff || !form.date || !form.service) {
+      if (!form.staffId || !form.date || !form.serviceId) {
         setAvailableSlots([]);
         return;
       }
@@ -243,30 +205,40 @@ export default function EditAppointmentModal({
         setIsLoadingSlots(true);
         setErrorMessage("");
 
-        const slots = await fetchAvailableSlots({
-          staffName: form.staff,
+        const slots = await getAvailableTimeSlots({
+          businessId: form.businessId,
+          serviceId: form.serviceId,
+          staffId: form.staffId,
           date: form.date,
-          serviceName: form.service,
           appointmentId: form.id,
         });
 
         if (cancelled) return;
 
-        setAvailableSlots(slots);
+        const durationMinutes = selectedService?.durationMinutes ?? 0;
 
-        const currentStartStillValid = slots.some((slot) => slot.start === form.time);
+        const mappedSlots: AvailableSlot[] = slots.map((start) => ({
+          start,
+          end: addMinutesToTime(start, durationMinutes),
+        }));
+
+        setAvailableSlots(mappedSlots);
+
+        const currentStartStillValid = mappedSlots.some(
+          (slot) => slot.start === form.time
+        );
 
         if (currentStartStillValid) {
-          const matchingSlot = slots.find((slot) => slot.start === form.time);
+          const matchingSlot = mappedSlots.find((slot) => slot.start === form.time);
           setForm((prev) => ({
             ...prev,
             endTime: matchingSlot ? matchingSlot.end : prev.endTime,
           }));
-        } else if (slots.length > 0) {
+        } else if (mappedSlots.length > 0) {
           setForm((prev) => ({
             ...prev,
-            time: slots[0].start,
-            endTime: slots[0].end,
+            time: mappedSlots[0].start,
+            endTime: mappedSlots[0].end,
           }));
         } else {
           setForm((prev) => ({
@@ -293,11 +265,33 @@ export default function EditAppointmentModal({
     return () => {
       cancelled = true;
     };
-  }, [form.staff, form.date, form.service, form.id]);
+  }, [form.businessId, form.staffId, form.date, form.serviceId, selectedService?.durationMinutes]);
 
   function handleChange<K extends keyof Appointment>(field: K, value: Appointment[K]) {
     setErrorMessage("");
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function handleStaffChange(staffId: number) {
+    const selected = staffOptions.find((staff) => staff.id === staffId);
+
+    setErrorMessage("");
+    setForm((prev) => ({
+      ...prev,
+      staffId,
+      staff: selected?.name || prev.staff,
+    }));
+  }
+
+  function handleServiceChange(serviceId: number) {
+    const selected = serviceOptions.find((service) => service.id === serviceId);
+
+    setErrorMessage("");
+    setForm((prev) => ({
+      ...prev,
+      serviceId,
+      service: selected?.name || prev.service,
+    }));
   }
 
   function handleTimeChange(startTime: string) {
@@ -332,7 +326,6 @@ export default function EditAppointmentModal({
       ...form,
       endTime: selectedStartSlot ? selectedStartSlot.end : form.endTime,
     });
-    onClose();
   }
 
   const noAvailabilityMessage =
@@ -373,12 +366,12 @@ export default function EditAppointmentModal({
                 <label className="calendar-field-label">Staff</label>
                 <select
                   className="calendar-field-input"
-                  value={form.staff}
-                  onChange={(e) => handleChange("staff", e.target.value)}
+                  value={form.staffId}
+                  onChange={(e) => handleStaffChange(Number(e.target.value))}
                   disabled={!permissions.canEditStaff}
                 >
                   {staffOptions.map((staff) => (
-                    <option key={staff.id} value={staff.name}>
+                    <option key={staff.id} value={staff.id}>
                       {staff.name}
                     </option>
                   ))}
@@ -389,12 +382,12 @@ export default function EditAppointmentModal({
                 <label className="calendar-field-label">Service</label>
                 <select
                   className="calendar-field-input"
-                  value={form.service}
-                  onChange={(e) => handleChange("service", e.target.value)}
+                  value={form.serviceId}
+                  onChange={(e) => handleServiceChange(Number(e.target.value))}
                   disabled={!permissions.canEditService}
                 >
                   {serviceOptions.map((service) => (
-                    <option key={service.id} value={service.name}>
+                    <option key={service.id} value={service.id}>
                       {service.name}
                     </option>
                   ))}
@@ -442,7 +435,11 @@ export default function EditAppointmentModal({
                     className="calendar-field-input"
                     value={form.time}
                     onChange={(e) => handleTimeChange(e.target.value)}
-                    disabled={!permissions.canEditTime || isLoadingSlots || availableSlots.length === 0}
+                    disabled={
+                      !permissions.canEditTime ||
+                      isLoadingSlots ||
+                      availableSlots.length === 0
+                    }
                   >
                     {isLoadingSlots ? (
                       <option value="">Loading slots...</option>

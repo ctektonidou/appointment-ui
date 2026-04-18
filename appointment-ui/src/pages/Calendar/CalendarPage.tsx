@@ -129,6 +129,10 @@ function mapApiAppointmentToCalendarEvent(
 function mapCalendarEventToAppointment(event: CalendarEvent): Appointment {
   return {
     id: event.id,
+    businessId: event.businessId,
+    serviceId: event.serviceId,
+    staffId: event.staffId,
+    customerUserId: event.customerUserId,
     client: event.customerName,
     staff: event.staffName,
     service: event.serviceName,
@@ -137,6 +141,8 @@ function mapCalendarEventToAppointment(event: CalendarEvent): Appointment {
     endTime: toTimeInputValue(event.end),
     status: event.status,
     notes: event.notes || "",
+    clientEmail: event.clientEmail || "",
+    clientPhone: event.clientPhone || "",
   };
 }
 
@@ -282,13 +288,13 @@ export default function CalendarPage() {
     setError("");
 
     try {
-      await updateBusinessAppointment(selected.businessId, selected.id, {
-        serviceId: selected.serviceId,
-        staffId: selected.staffId,
-        customerUserId: selected.customerUserId,
+      await updateBusinessAppointment(updated.businessId, updated.id, {
+        serviceId: updated.serviceId,
+        staffId: updated.staffId,
+        customerUserId: updated.customerUserId,
         clientName: updated.client,
-        clientEmail: selected.clientEmail || null,
-        clientPhone: selected.clientPhone || null,
+        clientEmail: updated.clientEmail || null,
+        clientPhone: updated.clientPhone || null,
         clientNotes: updated.notes.trim(),
         startTime: toLocalDateTimeParam(newStart),
         endTime: toLocalDateTimeParam(newEnd),
@@ -507,6 +513,7 @@ export default function CalendarPage() {
 
       {isEditModalOpen && editingAppointment && (
         <EditAppointmentModal
+          key={editingAppointment.id}
           appointment={editingAppointment}
           role={role}
           onClose={closeEditModal}

@@ -195,6 +195,7 @@ export async function getAvailableTimeSlots(params: {
   serviceId: number;
   staffId: number;
   date: string;
+  appointmentId?: number;
 }): Promise<string[]> {
   const url = buildUrl(
     `/api/businesses/${params.businessId}/appointments/available-slots`,
@@ -202,6 +203,7 @@ export async function getAvailableTimeSlots(params: {
       serviceId: params.serviceId,
       staffId: params.staffId,
       date: params.date,
+      appointmentId: params.appointmentId,
     }
   );
 
